@@ -6,6 +6,8 @@ import {
   Check,
   ChevronDown,
   Droplets,
+  Dumbbell,
+  Footprints,
   HeartHandshake,
   Lock,
   NotebookPen,
@@ -20,7 +22,16 @@ import { Thumb } from "../components/ui";
 import { ARTICLES } from "../data/articles";
 import { CUISINES, FOODS } from "../data/foods";
 import { RECIPES } from "../data/recipes";
-import { BMR_EQUATION_INFO, calculateEnergy, compareBmr, consumerDailyTarget, type Anthropometrics } from "../lib/nutrition";
+import {
+  ACTIVITIES,
+  BMR_EQUATION_INFO,
+  activityById,
+  activityKcal,
+  calculateEnergy,
+  compareBmr,
+  consumerDailyTarget,
+  type Anthropometrics,
+} from "../lib/nutrition";
 import { fmt } from "../state/derived";
 import "./landing.css";
 
@@ -29,6 +40,10 @@ const ADAEZE: Anthropometrics = { sex: "female", ageYears: 30, weightKg: 70, hei
 const BMR_ROWS = compareBmr(ADAEZE);
 const TEE = calculateEnergy(ADAEZE, { equation: "mifflin", pal: 1.55 }).tee;
 const TARGET = consumerDailyTarget({ ...ADAEZE, activity: "light", goal: "lose", conditions: [] });
+const WALK_MIN = 30;
+const WALK_KCAL = activityKcal(activityById("brisk-walking")!.met, ADAEZE.weightKg, WALK_MIN);
+/** An example active week (minutes per day) for the bento visual. */
+const WEEK_MINUTES: Array<[string, number]> = [["M", 30], ["T", 20], ["W", 45], ["T", 0], ["F", 30], ["S", 60], ["S", 15]];
 
 const RIBBON = [
   ["jollof", "🍛", "Jollof rice"], ["egusi", "🍲", "Egusi soup"], ["moimoi", "🫘", "Moi moi"], ["suya", "🍢", "Suya"],
@@ -160,15 +175,17 @@ export function Landing() {
       {/* Hero */}
       <section className="lp-hero">
         <div className="lp-hero-copy" data-reveal>
-          <span className="lp-pill"><Sparkles size={14} aria-hidden /> Nutrition made for Nigerian kitchens</span>
+          <span className="lp-pill"><Sparkles size={14} aria-hidden /> Nutrition and fitness, made simple</span>
           <h1>
-            Eat well,
+            Eat well.
             <br />
-            <em>the Naija way.</em>
+            Move more.
+            <br />
+            <em>Feel good.</em>
           </h1>
           <p className="lp-lead">
-            Nutrifi helps you understand what's on your plate — from eba and egusi to shawarma and pasta — in the portions
-            you actually eat. Calm, clear, and backed by dietitians.
+            Nutrifi brings your meals, water and movement together in one calm place — with portions that match real plates,
+            from jollof and egusi to pasta and salads. Small, steady habits, backed by dietitians.
           </p>
           <div className="lp-cta-row">
             <Link to="/start" className="lp-btn lp-btn-lime">Start free <ArrowRight size={18} aria-hidden /></Link>
@@ -189,8 +206,8 @@ export function Landing() {
             <div><strong>Eba · medium wrap</strong><span>250 g · 400 kcal</span></div>
           </div>
           <div className="lp-float f2" aria-hidden>
-            <span className="lp-float-icon"><Droplets size={18} /></span>
-            <div><strong>3 of 5 sachets</strong><span>Keep sipping</span></div>
+            <span className="lp-float-icon warm"><Footprints size={18} /></span>
+            <div><strong>Brisk walk · {WALK_MIN} min</strong><span>≈ {fmt(WALK_KCAL)} kcal burned</span></div>
           </div>
           <div className="lp-float f3" aria-hidden>
             <span className="lp-float-icon lime"><BadgeCheck size={18} /></span>
@@ -203,8 +220,8 @@ export function Landing() {
       <section className="lp-facts" data-reveal>
         <div><strong>{FOODS.length}</strong><span>dishes with portion guides</span></div>
         <div><strong>{nigerian}</strong><span>Nigerian staples, with local names</span></div>
+        <div><strong>{ACTIVITIES.length}</strong><span>activities with calorie estimates</span></div>
         <div><strong>{RECIPES.length}</strong><span>recipes you can plan and shop for</span></div>
-        <div><strong>{Object.keys(BMR_EQUATION_INFO).length}</strong><span>BMR equations for professionals</span></div>
       </section>
 
       {/* Dish ribbon */}
@@ -223,8 +240,8 @@ export function Landing() {
       <section className="lp-section" id="product">
         <div className="lp-head" data-reveal>
           <Eyebrow>The product</Eyebrow>
-          <h2>Everything you need to eat well, <em>nothing you don't.</em></h2>
-          <p>One quiet place for your meals, water, plans and progress — designed around how Nigerians really eat.</p>
+          <h2>Everything you need to feel your best, <em>nothing you don't.</em></h2>
+          <p>One quiet place for your meals, water, movement and progress — designed around how people really eat and live.</p>
         </div>
 
         <div className="lp-bento">
@@ -293,7 +310,31 @@ export function Landing() {
             </div>
           </article>
 
-          <article className="lp-tile span-3 lp-insight-tile" data-reveal>
+          <article className="lp-tile span-2" data-reveal>
+            <div className="lp-split">
+              <div>
+                <span className="lp-icon"><Dumbbell size={20} /></span>
+                <h3>Move more, see what it does</h3>
+                <p>Log walks, dance, football, gym or house chores. Nutrifi estimates the energy you burn and tracks your weekly minutes.</p>
+              </div>
+              <div className="lp-activity" aria-hidden>
+                <div className="lp-activity-head">
+                  <strong>{WEEK_MINUTES.reduce((t, [, m]) => t + m, 0)} min</strong>
+                  <span>of 150 min weekly goal</span>
+                </div>
+                <div className="lp-bars">
+                  {WEEK_MINUTES.map(([d, m], i) => (
+                    <div key={i} className="lp-bar">
+                      <i style={{ height: `${Math.max(6, (m / 60) * 100)}%` }} className={m === 0 ? "rest" : ""} />
+                      <span>{d}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article className="lp-tile" data-reveal>
             <span className="lp-icon"><BookOpen size={20} /></span>
             <h3>Insights you can trust</h3>
             <p>{ARTICLES.length} short reads on portions, salt, iron and more — reviewed by dietitians, shareable on WhatsApp.</p>
@@ -334,7 +375,7 @@ export function Landing() {
           {[
             ["Tell us about you", "A few gentle questions: your body, your day, your goal. Anything medical? We'll point you to a dietitian instead of guessing."],
             ["Log what you really eat", "Search in your own words — garri, iyan, shawarma — pick the portion, build the combo. About ten seconds a meal."],
-            ["See, learn, adjust", "Your day at a glance, a weekly view with your notes, and insights that nudge rather than nag."],
+            ["Move, see, adjust", "Add your walks and workouts, see your day and week at a glance, and get insights that nudge rather than nag."],
           ].map(([t, d], i) => (
             <li key={t} data-reveal>
               <span className="lp-step-num">0{i + 1}</span>
@@ -454,8 +495,8 @@ export function Landing() {
 
       {/* Final CTA */}
       <section className="lp-final" data-reveal>
-        <h2>Your plate, <em>understood.</em></h2>
-        <p>Start with one meal today. It takes less than a minute.</p>
+        <h2>Small steps. <em>Real change.</em></h2>
+        <p>Log one meal or one walk today. It takes less than a minute.</p>
         <Link to="/start" className="lp-btn lp-btn-lime lp-btn-lg">Start free <ArrowRight size={18} aria-hidden /></Link>
       </section>
 

@@ -12,7 +12,8 @@
   --lp-line: rgb(16 23 12 / 0.08);
   --lp-sage: #e6eddc;
   --lp-clay: #f3e3d1;
-  --lp-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  /* Same family as the app; one "display" setting for big type. */
+  --lp-serif: var(--font);
   --lp-max: 1180px;
   position: relative;
   min-height: 100vh;
@@ -46,10 +47,10 @@
 .lp > *:not(.lp-aura):not(.lp-nav) { position: relative; z-index: 1; }
 
 /* Type */
-.lp h1, .lp h2 { font-family: var(--lp-serif); font-weight: 400; letter-spacing: -0.02em; line-height: 1.02; margin: 0; }
-.lp h1 em, .lp h2 em { font-style: italic; color: var(--brand-text); }
-.lp h1 { font-size: clamp(3.1rem, 2rem + 6vw, 6.4rem); }
-.lp h2 { font-size: clamp(2.2rem, 1.6rem + 2.8vw, 3.6rem); }
+.lp h1, .lp h2 { font-family: var(--font); font-weight: 800; letter-spacing: -0.045em; line-height: 1.04; margin: 0; }
+.lp h1 em, .lp h2 em { font-style: normal; color: var(--brand-text); }
+.lp h1 { font-size: clamp(3rem, 1.9rem + 5.4vw, 5.8rem); line-height: 0.98; }
+.lp h2 { font-size: clamp(2rem, 1.4rem + 2.3vw, 3.1rem); }
 .lp h3 { font-size: 1.08rem; margin: 0.9rem 0 0.35rem; letter-spacing: -0.015em; font-weight: 700; }
 .lp p { color: var(--lp-muted); line-height: 1.65; }
 .lp-eyebrow {
@@ -166,6 +167,15 @@
 .lp-float .thumb.sm { width: 40px; height: 40px; border-radius: 12px; font-size: 1.2rem; }
 .lp-float-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #e3f1fb; color: #2f7fb8; }
 .lp-float-icon.lime { background: var(--lime-soft); color: var(--brand-text); }
+.lp-float-icon.warm { background: #ffe8d6; color: #c25e14; }
+.lp-activity { padding: 14px; border-radius: 22px; background: var(--lp-bg); border: 1px solid var(--lp-line); }
+.lp-activity-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.75rem; }
+.lp-activity-head strong { font-family: var(--font); font-weight: 800; letter-spacing: -0.04em; font-size: 2rem; line-height: 1; }
+.lp-activity-head span { color: var(--lp-muted); font-size: 0.8rem; }
+.lp-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; height: 120px; align-items: end; }
+.lp-bar { display: grid; grid-template-rows: 1fr auto; gap: 6px; height: 100%; text-align: center; font-size: 0.7rem; font-weight: 700; color: var(--lp-muted); }
+.lp-bar i { align-self: end; display: block; border-radius: 8px; background: linear-gradient(180deg, #ffc08f, var(--tile-protein)); }
+.lp-bar i.rest { background: var(--surface-sunk); }
 .lp-float.f1 { left: 0; top: 18%; animation: float 10s ease-in-out infinite 0.6s; }
 .lp-float.f2 { right: 0; top: 44%; animation: float 11s ease-in-out infinite 1.4s; }
 .lp-float.f3 { left: 6%; bottom: 8%; animation: float 12s ease-in-out infinite 2.2s; }
@@ -175,7 +185,7 @@
   max-width: var(--lp-max); margin: 1rem auto 0; padding: 0 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px;
 }
 .lp-facts > div { padding: 1.4rem 0.5rem; border-top: 1px solid var(--lp-line); }
-.lp-facts strong { display: block; font-family: var(--lp-serif); font-weight: 400; font-size: 3rem; line-height: 1; letter-spacing: -0.02em; }
+.lp-facts strong { display: block; font-family: var(--font); font-weight: 800; letter-spacing: -0.04em; font-size: 3rem; line-height: 1; letter-spacing: -0.02em; }
 .lp-facts span { color: var(--lp-muted); font-size: 0.86rem; }
 
 /* Ribbon */
@@ -244,14 +254,14 @@
 .lp-cuisine::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgb(10 14 8 / 0.82)); z-index: 3; }
 .lp-cuisine-copy { position: absolute; left: 0; right: 0; bottom: 0; padding: 1.5rem; z-index: 4; }
 .lp-cuisine-copy span { font-size: 0.78rem; font-weight: 700; opacity: 0.85; }
-.lp-cuisine-copy h3 { font-family: var(--lp-serif); font-weight: 400; font-size: 2.2rem; margin: 0.3rem 0 0.2rem; letter-spacing: -0.01em; }
+.lp-cuisine-copy h3 { font-family: var(--font); font-weight: 800; letter-spacing: -0.04em; font-size: 2.2rem; margin: 0.3rem 0 0.2rem; letter-spacing: -0.01em; }
 .lp-cuisine-copy p { color: rgb(255 255 255 / 0.78); margin: 0; font-size: 0.92rem; }
 
 /* Steps */
 .lp-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; counter-reset: step; }
 .lp-steps li { padding: 1.8rem 1.6rem; border-radius: 28px; border: 1px solid var(--lp-line); background: rgb(255 255 255 / 0.45); }
 @media (prefers-color-scheme: dark) { .lp-steps li { background: rgb(255 255 255 / 0.02); } }
-.lp-step-num { font-family: var(--lp-serif); font-size: 3.4rem; line-height: 1; color: var(--brand-text); }
+.lp-step-num { font-family: var(--font); font-weight: 800; font-size: 2.6rem; letter-spacing: -0.04em; line-height: 1; color: var(--brand-text); }
 .lp-steps p { margin: 0; }
 
 /* Professionals */
@@ -297,7 +307,7 @@
 .lp-plan.is-featured .lp-price span { color: rgb(238 243 231 / 0.6); }
 .lp-plan-flag { position: absolute; top: 1.4rem; right: 1.4rem; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.25rem 0.55rem; border-radius: 999px; background: var(--lime); color: var(--on-lime); }
 .lp-price { display: flex; align-items: baseline; gap: 0.4rem; margin: 0.5rem 0 1.25rem; }
-.lp-price strong { font-family: var(--lp-serif); font-weight: 400; font-size: 3rem; letter-spacing: -0.02em; line-height: 1; }
+.lp-price strong { font-family: var(--font); font-weight: 800; letter-spacing: -0.04em; font-size: 3rem; letter-spacing: -0.02em; line-height: 1; }
 .lp-price span { color: var(--lp-muted); font-size: 0.86rem; }
 .lp-plan ul { list-style: none; padding: 0; margin: 0 0 1.5rem; display: grid; gap: 0.6rem; flex: 1; }
 .lp-plan li { display: flex; gap: 0.5rem; font-size: 0.92rem; color: var(--lp-muted); }

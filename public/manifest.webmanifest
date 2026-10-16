@@ -1,7 +1,7 @@
 {
   "name": "Nutrifi",
   "short_name": "Nutrifi",
-  "description": "Eat well, the Naija way.",
+  "description": "Eat well. Move more. Feel good.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#eef2e8",
