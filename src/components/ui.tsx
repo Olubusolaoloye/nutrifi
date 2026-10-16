@@ -1,5 +1,6 @@
 import { Droplet, Flame, Lock, Search, Wheat, Beef } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { photoFor, photoUrl } from "../data/photos";
 import { Link } from "react-router-dom";
 import { fmt } from "../state/derived";
 import type { Meal } from "../state/store";
@@ -136,10 +137,35 @@ export function NutrientChips({ m }: { m: Macros }) {
   );
 }
 
-export function Thumb({ emoji, size = "", label }: { emoji: string; size?: "" | "sm" | "lg"; label?: string }) {
+const THUMB_WIDTH = { "": 240, sm: 160, lg: 960 } as const;
+
+/** Dish photo (Wikimedia Commons) with the emoji as placeholder and fallback. */
+export function Thumb({ emoji, size = "", label, photo }: { emoji: string; size?: "" | "sm" | "lg"; label?: string; photo?: string }) {
+  const p = photo ? photoFor(photo) : undefined;
+  const url = p ? photoUrl(p, THUMB_WIDTH[size]) : null;
+  // Status is tied to the URL so a reused thumbnail resets when its dish changes.
+  const [status, setStatus] = useState<{ url: string | null; s: "ok" | "failed" } | null>(null);
+  const state = status && status.url === url ? status.s : "loading";
+  const showImg = url && state !== "failed";
   return (
-    <span className={`thumb ${size}`} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
-      {emoji}
+    <span
+      className={`thumb ${size}${showImg ? " has-photo" : ""}${state === "ok" ? " is-loaded" : ""}`}
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    >
+      <span className="thumb-emoji">{emoji}</span>
+      {showImg && (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={() => setStatus({ url, s: "ok" })}
+          onError={() => setStatus({ url, s: "failed" })}
+        />
+      )}
     </span>
   );
 }

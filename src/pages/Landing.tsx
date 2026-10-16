@@ -47,6 +47,8 @@ export function Landing() {
       </section>
       <p className="disclaimer">
         Your health data stays private. Nutrifi supports healthy eating but does not replace medical advice.
+        <br />
+        <Link to="/credits" className="link">Photo credits</Link>
       </p>
     </div>
   );

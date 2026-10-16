@@ -31,7 +31,7 @@ export function AddToPlanSheet({ recipe, onClose }: { recipe: Recipe; onClose: (
   return (
     <Sheet title="Add to meal plan" onClose={onClose}>
       <div className="row" style={{ marginBottom: "0.75rem" }}>
-        <Thumb emoji={recipe.emoji} size="sm" />
+        <Thumb emoji={recipe.emoji} size="sm" photo={`recipe:${recipe.id}`} />
         <strong>{recipe.name}</strong>
       </div>
       <h3>Day</h3>
@@ -106,7 +106,7 @@ export function Recipes() {
             <>
               <div className="section-title"><h2>Featured recipe</h2></div>
               <section className="card featured featured-recipe">
-                <Thumb emoji={featured.emoji} size="lg" />
+                <Thumb emoji={featured.emoji} size="lg" photo={`recipe:${featured.id}`} />
                 <div className="featured-main">
                   <h2 className="featured-recipe-title">{featured.name}</h2>
                   <div className="row"><MealTag meal={featured.meal} /><span className="tag tag-on-ink">{featured.cuisine}</span></div>
@@ -142,7 +142,7 @@ export function Recipes() {
           <ul className="food-rows">
             {list.map((r) => (
               <li key={r.id} className="food-row">
-                <Link to={`/recipes/${r.id}`} aria-label={r.name}><Thumb emoji={r.emoji} /></Link>
+                <Link to={`/recipes/${r.id}`} aria-label={r.name}><Thumb emoji={r.emoji} photo={`recipe:${r.id}`} /></Link>
                 <div className="food-row-body">
                   <div className="food-row-top">
                     <MealTag meal={r.meal} />
@@ -166,7 +166,7 @@ export function Recipes() {
             {popular.map((r) => (
               <li key={r.id}>
                 <Link to={`/recipes/${r.id}`} className="food-row">
-                  <Thumb emoji={r.emoji} size="sm" />
+                  <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
                   <div className="food-row-body">
                     <strong className="small">{r.name}</strong>
                     <div className="row"><MealTag meal={r.meal} /><span className="muted small">{r.cuisine}</span></div>
@@ -180,7 +180,7 @@ export function Recipes() {
             {quick.map((r) => (
               <li key={r.id}>
                 <Link to={`/recipes/${r.id}`} className="food-row">
-                  <Thumb emoji={r.emoji} size="sm" />
+                  <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
                   <div className="food-row-body">
                     <strong className="small">{r.name}</strong>
                     <span className="muted small"><Flame size={12} aria-hidden /> {r.kcal} kcal · {totalMinutes(r)} min</span>
@@ -227,7 +227,7 @@ export function RecipeDetail() {
       <div className="with-aside">
         <div>
           <section className="card recipe-hero">
-            <Thumb emoji={recipe.emoji} size="lg" />
+            <Thumb emoji={recipe.emoji} size="lg" photo={`recipe:${recipe.id}`} label={recipe.name} />
             <div>
               <h1 className="recipe-title">{recipe.name}</h1>
               <div className="row" style={{ margin: "0.5rem 0 0.75rem" }}>

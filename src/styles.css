@@ -961,3 +961,25 @@ a.food-row:hover { transform: translateY(-2px); box-shadow: var(--shadow); borde
   .chat-profile { display: grid; align-content: start; }
 }
 .card.row { display: flex; }
+
+/* Dish photos: emoji shows while loading and if a photo fails */
+.thumb { overflow: hidden; }
+.thumb-emoji { position: relative; z-index: 1; transition: opacity 0.3s; }
+.thumb img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2;
+  opacity: 0; transform: scale(1.04); transition: opacity 0.45s var(--ease), transform 0.6s var(--ease);
+}
+.thumb.is-loaded img { opacity: 1; transform: none; }
+.thumb.is-loaded .thumb-emoji, .thumb.is-loaded::before { opacity: 0; }
+.thumb.has-photo { background: var(--surface-sunk); }
+.thumb.has-photo:not(.is-loaded) .thumb-emoji { animation: shimmer 1.4s ease-in-out infinite; }
+@keyframes shimmer { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.thumb.is-loaded { box-shadow: inset 0 0 0 1px var(--hairline), var(--shadow-sm); }
+button.food-row:hover .thumb.is-loaded img, a.food-row:hover .thumb.is-loaded img, a.card:hover .thumb.is-loaded img { transform: scale(1.05); }
+.featured-recipe .thumb.has-photo, .featured-article .thumb.has-photo { background: rgb(255 255 255 / 0.06); }
+
+/* Credits */
+.credits { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.credits li { display: flex; gap: 0.85rem; align-items: center; }
+.credits a { font-weight: 700; text-decoration: none; }
+.credits a:hover { color: var(--brand-text); text-decoration: underline; }

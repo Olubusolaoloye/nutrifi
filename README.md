@@ -40,4 +40,5 @@ npm run build      # production build in dist/
 - Data is stored in the browser (`localStorage`). There's no backend or accounts yet.
 - Verification is simulated with a "Demo: approve my verification" button on the Me page.
 - Messaging is a preview with sample conversations; it launches with paid interventions.
+- Food photos come from Wikimedia Commons (public domain / Creative Commons) and are credited on the Photo credits page (`/credits`); a dish falls back to its emoji if its photo can't load.
 - Food values, recipes, ₦ grocery prices and articles are **sample placeholders, not for clinical use**. They'll be replaced with the West African / Nigerian food composition tables and articles reviewed by dietitians.

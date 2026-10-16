@@ -11,6 +11,7 @@ import { Onboarding } from "./pages/Onboarding";
 import { Progress } from "./pages/Progress";
 import { Workbench } from "./pages/Workbench";
 import { Calendar } from "./pages/Calendar";
+import { Credits } from "./pages/Credits";
 import { Exercises } from "./pages/Exercises";
 import { Grocery } from "./pages/Grocery";
 import { MealPlan } from "./pages/MealPlan";
@@ -29,6 +30,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={profile ? <Navigate to="/home" replace /> : <Landing />} />
       <Route path="/start" element={<Onboarding />} />
+      <Route path="/credits" element={<Credits />} />
       <Route
         element={
           <RequireProfile>

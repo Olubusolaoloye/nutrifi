@@ -87,7 +87,7 @@ export function Diary() {
                       if (!food) return null;
                       return (
                         <li key={e.id} className="food-row">
-                          <Thumb emoji={food.emoji} />
+                          <Thumb emoji={food.emoji} photo={food.id} />
                           <div className="food-row-body">
                             <strong>{food.name}</strong>
                             <span className="muted small">{e.portionLabel} · {e.grams} g{e.loggedAt ? ` · ${new Date(e.loggedAt).toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit" })}` : ""}</span>

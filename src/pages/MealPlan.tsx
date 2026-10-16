@@ -101,7 +101,7 @@ export function MealPlan() {
                     <span className="plan-cell-label">{meal === "Snacks" ? "Snack" : meal}</span>
                     {r ? (
                       <button className="plan-item" onClick={() => setEditing({ date, meal })}>
-                        <Thumb emoji={r.emoji} size="sm" />
+                        <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
                         <span>
                           <strong>{r.name}</strong>
                           <small>{r.kcal} kcal</small>
@@ -140,7 +140,7 @@ export function MealPlan() {
                         setEditing(null);
                       }}
                     >
-                      <Thumb emoji={r.emoji} size="sm" />
+                      <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
                       <div className="food-row-body">
                         <strong className="small">{r.name}</strong>
                         <span className="muted small">{r.cuisine} · {r.meal} · {r.kcal} kcal</span>

@@ -54,7 +54,7 @@ export function AddFood() {
       <ul className="entry-list">
         {tray.map((p, i) => (
           <li key={i}>
-            <Thumb emoji={p.food.emoji} size="sm" />
+            <Thumb emoji={p.food.emoji} size="sm" photo={p.food.id} />
             <div>
               <strong>{p.food.name}</strong>
               <span className="muted small">{p.portionLabel} · {fmt(nutrientsFor(p.food, p.grams).kcal)} kcal</span>
@@ -137,7 +137,7 @@ export function AddFood() {
                       return (
                         <li key={f.id}>
                           <button className="food-row" onClick={() => setSelected(f)}>
-                            <Thumb emoji={f.emoji} />
+                            <Thumb emoji={f.emoji} photo={f.id} />
                             <div className="food-row-body">
                               <div className="food-row-top">
                                 <span className="tag tag-outline">{searching ? f.category : f.aliases[0]}</span>
@@ -180,7 +180,7 @@ function PortionPicker({ food, onAdd, onCancel }: { food: Food; onAdd: (p: Pendi
     <section className="card picker">
       <div>
         <button className="btn btn-ghost btn-small" onClick={onCancel}><ArrowLeft size={16} /> Back</button>
-        <Thumb emoji={food.emoji} size="lg" label={food.name} />
+        <Thumb emoji={food.emoji} size="lg" label={food.name} photo={food.id} />
       </div>
       <div>
         <div className="food-row-top"><span className="tag tag-outline">{food.cuisine} · {food.category}</span><span className="badge">{food.source}</span></div>

@@ -80,6 +80,7 @@ export function Me() {
         </button>
       </Card>
       <Disclaimer />
+      <p className="center"><Link to="/credits" className="link">Photo credits</Link></p>
     </div>
   );
 }

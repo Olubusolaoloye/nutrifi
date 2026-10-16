@@ -64,7 +64,7 @@ export function Learn() {
             <>
               <div className="section-title"><h2>Featured article</h2></div>
               <Link to={`/learn/${featured.id}`} className="card featured-article">
-                <Thumb emoji={featured.emoji} size="lg" />
+                <Thumb emoji={featured.emoji} size="lg" photo={`article:${featured.id}`} />
                 <div>
                   <ArticleMeta a={featured} />
                   <h2 className="featured-article-title">{featured.title}</h2>
@@ -80,7 +80,7 @@ export function Learn() {
                     {popular.map((a) => (
                       <li key={a.id}>
                         <Link to={`/learn/${a.id}`} className="food-row">
-                          <Thumb emoji={a.emoji} />
+                          <Thumb emoji={a.emoji} photo={`article:${a.id}`} />
                           <div className="food-row-body">
                             <ArticleMeta a={a} />
                             <strong>{a.title}</strong>
@@ -99,7 +99,7 @@ export function Learn() {
                   <div className="card-grid">
                     {rest.map((a) => (
                       <Link key={a.id} to={`/learn/${a.id}`} className="card mini-article">
-                        <Thumb emoji={a.emoji} size="lg" />
+                        <Thumb emoji={a.emoji} size="lg" photo={`article:${a.id}`} />
                         <span className="tag tag-breakfast">{a.topic}</span>
                         <strong>{a.title}</strong>
                         <span className="muted small">{dateLabel(a.published)}</span>
@@ -153,7 +153,7 @@ export function ArticlePage() {
             <span className="author"><span className="author-dot" aria-hidden>N</span> Nutrifi editorial</span>
             <span className="badge badge-ok"><ShieldCheck size={13} aria-hidden /> Dietitian review pending</span>
           </div>
-          <Thumb emoji={a.emoji} size="lg" />
+          <Thumb emoji={a.emoji} size="lg" photo={`article:${a.id}`} />
           <p className="lead">{a.summary}</p>
           {a.body.map((p, i) => (
             <p key={i}>{p}</p>
@@ -185,7 +185,7 @@ export function ArticlePage() {
             {relatedArticles(a).map((r) => (
               <li key={r.id}>
                 <Link to={`/learn/${r.id}`} className="food-row">
-                  <Thumb emoji={r.emoji} size="sm" />
+                  <Thumb emoji={r.emoji} size="sm" photo={`article:${r.id}`} />
                   <div className="food-row-body">
                     <strong className="small">{r.title}</strong>
                     <span className="muted small">{r.topic}</span>

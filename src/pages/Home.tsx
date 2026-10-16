@@ -13,24 +13,24 @@ import { MEALS, canUseWorkbench, todayIso, useStore, type Meal } from "../state/
 const ROLE_LABEL = { consumer: "Member", student: "Nutrition student", dietitian: "Dietitian" };
 
 /** Popular dishes for quick logging, by cuisine (opens Add food with the dish searched). */
-const POPULAR: Record<Cuisine, Array<{ name: string; emoji: string; meal: Meal; query: string }>> = {
+const POPULAR: Record<Cuisine, Array<{ name: string; emoji: string; meal: Meal; query: string; photo: string }>> = {
   Nigerian: [
-    { name: "Eba with Egusi soup & Beef", emoji: "🍲", meal: "Lunch", query: "eba" },
-    { name: "Jollof rice, Dodo & Chicken", emoji: "🍛", meal: "Lunch", query: "jollof" },
-    { name: "Bread & Akara with Tea", emoji: "🧆", meal: "Breakfast", query: "akara" },
-    { name: "Beans & Fried plantain", emoji: "🫘", meal: "Dinner", query: "beans" },
+    { name: "Eba with Egusi soup & Beef", emoji: "🍲", meal: "Lunch", query: "eba", photo: "recipe:egusi-eba" },
+    { name: "Jollof rice, Dodo & Chicken", emoji: "🍛", meal: "Lunch", query: "jollof", photo: "recipe:jollof-chicken" },
+    { name: "Bread & Akara with Tea", emoji: "🧆", meal: "Breakfast", query: "akara", photo: "recipe:akara-pap" },
+    { name: "Beans & Fried plantain", emoji: "🫘", meal: "Dinner", query: "beans", photo: "recipe:beans-dodo" },
   ],
   Continental: [
-    { name: "Full English breakfast", emoji: "🍳", meal: "Breakfast", query: "english" },
-    { name: "Grilled salmon & vegetables", emoji: "🐟", meal: "Dinner", query: "salmon" },
-    { name: "Spaghetti bolognese", emoji: "🍝", meal: "Lunch", query: "bolognese" },
-    { name: "Chicken Caesar salad", emoji: "🥗", meal: "Lunch", query: "caesar" },
+    { name: "Full English breakfast", emoji: "🍳", meal: "Breakfast", query: "english", photo: "english-breakfast" },
+    { name: "Grilled salmon & vegetables", emoji: "🐟", meal: "Dinner", query: "salmon", photo: "grilled-salmon" },
+    { name: "Spaghetti bolognese", emoji: "🍝", meal: "Lunch", query: "bolognese", photo: "bolognese" },
+    { name: "Chicken Caesar salad", emoji: "🥗", meal: "Lunch", query: "caesar", photo: "caesar" },
   ],
   International: [
-    { name: "Chicken shawarma", emoji: "🌯", meal: "Dinner", query: "shawarma" },
-    { name: "Pepperoni pizza", emoji: "🍕", meal: "Dinner", query: "pizza" },
-    { name: "Chicken curry", emoji: "🍛", meal: "Lunch", query: "curry" },
-    { name: "Greek yoghurt & berries", emoji: "🫐", meal: "Breakfast", query: "yoghurt" },
+    { name: "Chicken shawarma", emoji: "🌯", meal: "Dinner", query: "shawarma", photo: "shawarma" },
+    { name: "Pepperoni pizza", emoji: "🍕", meal: "Dinner", query: "pizza", photo: "pizza" },
+    { name: "Chicken curry", emoji: "🍛", meal: "Lunch", query: "curry", photo: "chicken-curry" },
+    { name: "Greek yoghurt & berries", emoji: "🫐", meal: "Breakfast", query: "yoghurt", photo: "yoghurt-bowl" },
   ],
 };
 
@@ -135,7 +135,7 @@ export function Home() {
                 if (!food) return null;
                 return (
                   <li key={e.id} className="food-row">
-                    <Thumb emoji={food.emoji} />
+                    <Thumb emoji={food.emoji} photo={food.id} />
                     <div className="food-row-body">
                       <div className="food-row-top"><MealTag meal={meal} /><span className="tag tag-outline">{e.portionLabel}</span></div>
                       <strong>{food.name}</strong>
@@ -174,7 +174,7 @@ export function Home() {
                   const r = recipeById(plan[today]?.[m] ?? "");
                   return r ? (
                     <li key={m}>
-                      <Thumb emoji={r.emoji} size="sm" />
+                      <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
                       <div><span className="muted small">{m}</span><Link to={`/recipes/${r.id}`} className="row-title small">{r.name}</Link></div>
                       <span className="muted small">{r.kcal} kcal</span>
                     </li>
@@ -214,7 +214,7 @@ export function Home() {
           <ul className="food-rows">
             {POPULAR[cuisine].map((p) => (
               <li key={p.name} className="food-row">
-                <Thumb emoji={p.emoji} size="sm" />
+                <Thumb emoji={p.emoji} size="sm" photo={p.photo} />
                 <div className="food-row-body">
                   <strong className="small">{p.name}</strong>
                   <MealTag meal={p.meal} />
