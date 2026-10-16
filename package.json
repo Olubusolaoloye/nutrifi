@@ -9,18 +9,26 @@
     "preview": "vite preview",
     "typecheck": "tsc -p .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dev:backend": "convex dev",
+    "build:ci": "if [ -n \"$CONVEX_DEPLOY_KEY\" ]; then npx convex deploy --cmd 'npm run build'; else npm run build; fi"
   },
   "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@convex-dev/auth": "^0.0.96",
+    "convex": "^1.46.0",
     "lucide-react": "^1.46.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
+    "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "convex-test": "^0.0.60",
     "typescript": "^5.9.3",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"

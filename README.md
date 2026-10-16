@@ -35,10 +35,14 @@ npm run build      # production build in dist/
 
 **Hybrid rule:** consumers see one simple daily target. People who report a medical condition, and anyone under 18, are sent to a dietitian instead of getting a target. Only verified students and dietitians can use the full Workbench.
 
+## Backend and accounts
+
+Accounts, cloud sync, verification review and the waitlist run on **Convex** — see [`BACKEND.md`](BACKEND.md) for setup.
+Until Convex is configured (`VITE_CONVEX_URL`), the app runs in on-device mode: data is stored in the browser and
+verification is simulated with a "Demo: approve my verification" button on the Me page.
+
 ## Prototype limits
 
-- Data is stored in the browser (`localStorage`). There's no backend or accounts yet.
-- Verification is simulated with a "Demo: approve my verification" button on the Me page.
 - Messaging is a preview with sample conversations; it launches with paid interventions.
 - Food photos come from Wikimedia Commons (public domain / Creative Commons) and are credited on the Photo credits page (`/credits`); a dish falls back to its emoji if its photo can't load.
 - Food values, recipes, ₦ grocery prices and articles are **sample placeholders, not for clinical use**. They'll be replaced with the West African / Nigerian food composition tables and articles reviewed by dietitians.

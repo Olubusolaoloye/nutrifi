@@ -42,8 +42,10 @@ type Draft = {
 
 export function Onboarding() {
   const navigate = useNavigate();
-  const { completeOnboarding } = useStore();
+  const { completeOnboarding, mode } = useStore();
   const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [d, setD] = useState<Draft>({
     role: "consumer",
     name: "",
@@ -82,11 +84,20 @@ export function Onboarding() {
     (current === "body" && height >= 50 && height <= 250 && weight >= 20 && weight <= 350) ||
     ["role", "activity", "goal", "conditions", "results"].includes(current);
 
-  const next = () => {
-    if (current === "results") {
-      completeOnboarding(profile, weight);
+  const next = async () => {
+    if (current !== "results") {
+      setStep((s) => s + 1);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await completeOnboarding(profile, weight, isPro ? d.credential.trim() : undefined);
       navigate("/home");
-    } else setStep((s) => s + 1);
+    } catch (e) {
+      setError(mode === "cloud" ? "We couldn't save your profile. Check your connection and try again." : String(e));
+      setSaving(false);
+    }
   };
 
   return (
@@ -116,7 +127,7 @@ export function Onboarding() {
           </label>
           <p className="muted small">
             We'll review this before unlocking the Workbench. You can use everything else while you wait.
-            (Document upload is coming with the backend.)
+            You can add a photo or PDF of your licence or ID on the Me page after setup.
           </p>
         </Step>
       )}
@@ -191,14 +202,15 @@ export function Onboarding() {
 
       {current === "results" && <Results profile={profile} weightKg={weight} />}
 
+      {error && <p className="error small" role="alert">{error}</p>}
       <div className="onboarding-actions">
         {step > 0 && (
           <button className="btn btn-ghost" onClick={() => setStep((s) => s - 1)}>
             Back
           </button>
         )}
-        <button className="btn btn-primary" disabled={!canContinue} onClick={next}>
-          {current === "results" ? "Go to my dashboard" : "Continue"}
+        <button className="btn btn-primary" disabled={!canContinue || saving} onClick={next}>
+          {current === "results" ? (saving ? "Saving…" : "Go to my dashboard") : "Continue"}
         </button>
       </div>
       </div>

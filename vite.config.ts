@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "convex/**/*.test.ts"],
+    server: { deps: { inline: ["convex-test"] } },
   },
 });

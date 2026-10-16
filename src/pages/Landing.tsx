@@ -18,6 +18,8 @@ import {
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Thumb } from "../components/ui";
+import { WaitlistForm } from "../components/WaitlistForm";
+import { useStore } from "../state/store";
 import { ARTICLES } from "../data/articles";
 import { CUISINES, FOODS } from "../data/foods";
 import { RECIPES } from "../data/recipes";
@@ -151,6 +153,7 @@ function PhoneMock() {
 
 export function Landing() {
   const root = useReveal();
+  const { mode } = useStore();
   const nigerian = FOODS.filter((f) => f.cuisine === "Nigerian").length;
 
   return (
@@ -168,7 +171,10 @@ export function Landing() {
           <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
         </nav>
-        <Link to="/start" className="lp-btn lp-btn-dark lp-btn-sm">Open the app</Link>
+        <div className="row" style={{ gap: "0.35rem" }}>
+          {mode === "cloud" && <Link to="/auth" className="lp-signin">Sign in</Link>}
+          <Link to="/start" className="lp-btn lp-btn-dark lp-btn-sm">{mode === "cloud" ? "Get started" : "Open the app"}</Link>
+        </div>
       </header>
 
       {/* Hero */}
@@ -496,6 +502,12 @@ export function Landing() {
         <h2>Small steps. <em>Real change.</em></h2>
         <p>Log one meal or one walk today. It takes less than a minute.</p>
         <Link to="/start" className="lp-btn lp-btn-lime lp-btn-lg">Start free <ArrowRight size={18} aria-hidden /></Link>
+        {mode === "cloud" && (
+          <div className="lp-waitlist-wrap">
+            <p className="small">Dietitian, student or just curious? Get launch news and early access.</p>
+            <WaitlistForm />
+          </div>
+        )}
       </section>
 
       <footer className="lp-footer">

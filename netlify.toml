@@ -1,5 +1,6 @@
 [build]
-  command = "npm run build"
+  # Deploys Convex functions first when CONVEX_DEPLOY_KEY is set in Netlify; otherwise a plain build (on-device mode).
+  command = "npm run build:ci"
   publish = "dist"
 
 [build.environment]

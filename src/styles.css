@@ -983,3 +983,17 @@ button.food-row:hover .thumb.is-loaded img, a.food-row:hover .thumb.is-loaded im
 .credits li { display: flex; gap: 0.85rem; align-items: center; }
 .credits a { font-weight: 700; text-decoration: none; }
 .credits a:hover { color: var(--brand-text); text-decoration: underline; }
+
+/* Accounts */
+.splash { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 0.75rem; animation: pop 0.6s var(--ease) both; }
+.splash img { border-radius: 16px; box-shadow: var(--shadow); animation: float 3s ease-in-out infinite; }
+.input-icon { position: relative; display: flex; align-items: center; }
+.input-icon > svg { position: absolute; left: 0.9rem; color: var(--muted); pointer-events: none; }
+.input-icon input { padding-left: 2.6rem; }
+.input-icon .input-trail { position: absolute; right: 0.35rem; }
+.upload-drop {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 64px; padding: 0.75rem; width: 100%;
+  border: 1.5px dashed var(--border); border-radius: 14px; background: var(--surface-warm); color: var(--muted); font-weight: 600; cursor: pointer;
+}
+.upload-drop:hover { border-color: var(--lime-2); color: var(--text); }
+.review-item { margin: 0; }

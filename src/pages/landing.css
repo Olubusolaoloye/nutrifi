@@ -381,3 +381,12 @@
   .lp-plans { grid-template-columns: repeat(4, 1fr); }
   .lp-pros { margin: 7rem 24px 0; }
 }
+
+/* Accounts on the landing page */
+.lp-signin { padding: 0.5rem 0.9rem; border-radius: 999px; font-weight: 700; font-size: 0.88rem; color: var(--lp-text); text-decoration: none; }
+.lp-signin:hover { background: rgb(16 23 12 / 0.05); }
+.lp-waitlist-wrap { max-width: 560px; margin: 2.5rem auto 0; }
+.lp-waitlist { display: grid; gap: 0.6rem; }
+.lp-waitlist input, .lp-waitlist select { min-height: 52px; border-radius: 999px; padding: 0 1.2rem; background: var(--lp-paper); border: 1px solid var(--lp-line); }
+.lp-waitlist-done { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--brand-text); }
+@media (min-width: 720px) { .lp-waitlist { grid-template-columns: 1.3fr 1fr auto; } }

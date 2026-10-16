@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { AccountCard, CloudDeleteCard, ImportCard, VerificationCard } from "../components/CloudPanels";
 import { Avatar, NAV_ENTRIES } from "../components/Layout";
 import { Card, Disclaimer, Locked } from "../components/ui";
 import { CONDITION_LABEL, PAL } from "../lib/nutrition";
@@ -10,7 +11,8 @@ const ROLE_LABEL = { consumer: "Member", student: "Nutrition student", dietitian
 
 export function Me() {
   const navigate = useNavigate();
-  const { profile, latestWeightKg, updateProfile, resetAll } = useStore();
+  const { profile, latestWeightKg, updateProfile, resetAll, mode, account } = useStore();
+  const cloud = mode === "cloud";
   if (!profile || latestWeightKg === null) return null;
   const s = bodySummary(profile, latestWeightKg);
   const isPro = profile.role !== "consumer";
@@ -25,9 +27,12 @@ export function Me() {
           {ROLE_LABEL[profile.role]}
           {profile.verification === "verified" && <span className="badge badge-ok"> ✓ Verified</span>}
           {profile.verification === "pending" && <span className="badge"> Verification pending</span>}
+          {profile.verification === "rejected" && <span className="badge"> Verification needs attention</span>}
         </p>
         </div>
       </header>
+
+      {cloud && <ImportCard />}
 
       <section className="more-grid" aria-label="All features">
         {NAV_ENTRIES.filter((n) => n.to !== "/home").map((n) => (
@@ -49,29 +54,41 @@ export function Me() {
         </dl>
       </Card>
 
+      {cloud && isPro && <VerificationCard />}
+      {cloud && account?.isAdmin && (
+        <Card title="Admin" className="card-accent">
+          <p className="small" style={{ marginTop: 0 }}>Review student and dietitian verification requests.</p>
+          <button className="btn btn-primary" onClick={() => navigate("/admin")}>Open review queue</button>
+        </Card>
+      )}
+
       {canUseWorkbench(profile) ? (
         <Card title="Professional Workbench" className="card-accent">
           <button className="btn btn-primary" onClick={() => navigate("/workbench")}>Open Workbench</button>
         </Card>
       ) : isPro ? (
-        <Card title="Verification">
-          <p className="small">We're reviewing your details. The Workbench unlocks once you're verified.</p>
-          {/* Prototype only: there is no review backend yet. */}
-          <button className="btn btn-secondary" onClick={() => updateProfile({ verification: "verified" })}>
-            Demo: approve my verification
-          </button>
-        </Card>
+        cloud ? null : (
+          <Card title="Verification">
+            <p className="small">We're reviewing your details. The Workbench unlocks once you're verified.</p>
+            {/* On-device mode only: there's no review backend without an account. */}
+            <button className="btn btn-secondary" onClick={() => updateProfile({ verification: "verified" })}>
+              Demo: approve my verification
+            </button>
+          </Card>
+        )
       ) : (
         <Locked />
       )}
 
+      {cloud && <AccountCard />}
+      {cloud ? <CloudDeleteCard /> : (
       <Card title="Privacy & data">
         <p className="small">Your data is stored on this device for now. Account sync is coming soon.</p>
         <button
           className="btn btn-danger"
           onClick={() => {
             if (confirm("Delete all your Nutrifi data on this device?")) {
-              resetAll();
+              void resetAll();
               navigate("/");
             }
           }}
@@ -79,6 +96,7 @@ export function Me() {
           Delete my data
         </button>
       </Card>
+      )}
       <Disclaimer />
       <p className="center"><Link to="/credits" className="link">Photo credits</Link></p>
     </div>

@@ -9,6 +9,7 @@ import {
   MessageCircle,
   NotebookPen,
   Plus,
+  ShieldCheck,
   ShoppingBasket,
   TrendingUp,
   UserRound,
@@ -77,7 +78,7 @@ const MOBILE_TABS: NavEntry[] = [
 ];
 
 export function Layout() {
-  const { profile } = useStore();
+  const { profile, account } = useStore();
   const online = useOnline();
   const pro = canUseWorkbench(profile);
   const cls = (extra = "") => ({ isActive }: { isActive: boolean }) => `nav-item ${extra}${isActive ? " active" : ""}`;
@@ -97,6 +98,11 @@ export function Layout() {
         {pro && (
           <NavLink to="/workbench" className={cls()}>
             <span className="nav-icon"><Calculator size={19} /></span><span className="grow">Workbench</span><span className="nav-pro">PRO</span>
+          </NavLink>
+        )}
+        {account?.isAdmin && (
+          <NavLink to="/admin" className={cls()}>
+            <span className="nav-icon"><ShieldCheck size={19} /></span><span className="grow">Verification queue</span>
           </NavLink>
         )}
         <NavLink to="/me" className={cls()}>

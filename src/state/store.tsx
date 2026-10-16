@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { ActivityLevel, Condition, Goal, Sex } from "../lib/nutrition";
 
 export type Role = "consumer" | "student" | "dietitian";
-export type Verification = "none" | "pending" | "verified";
+export type Verification = "none" | "pending" | "verified" | "rejected";
 export type Meal = "Breakfast" | "Lunch" | "Dinner" | "Snacks";
 export const MEALS: Meal[] = ["Breakfast", "Lunch", "Dinner", "Snacks"];
 
@@ -108,7 +108,7 @@ export interface ExerciseEntry {
   status: ExerciseStatus;
 }
 
-interface PersistedState {
+export interface PersistedState {
   profile: Profile | null;
   diary: DiaryEntry[];
   water: Record<string, number>; // date → ml
@@ -120,8 +120,8 @@ interface PersistedState {
   exercises: ExerciseEntry[];
 }
 
-const STORAGE_KEY = "nutrifi:v1";
-const EMPTY: PersistedState = {
+export const STORAGE_KEY = "nutrifi:v1";
+export const EMPTY: PersistedState = {
   profile: null,
   diary: [],
   water: {},
@@ -133,7 +133,7 @@ const EMPTY: PersistedState = {
   exercises: [],
 };
 
-function load(): PersistedState {
+export function loadLocal(): PersistedState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY;
@@ -165,9 +165,24 @@ export function ageFromBirthDate(birthDate: string, on = new Date()): number {
   return age;
 }
 
-interface Store extends PersistedState {
+export interface VerificationInfo {
+  status: "pending" | "verified" | "rejected";
+  credential: string;
+  reviewerNote: string | null;
+  hasDocument: boolean;
+}
+
+export interface Store extends PersistedState {
+  /** "local": saved on this device only. "cloud": Convex account. */
+  mode: "local" | "cloud";
+  /** False while cloud data is still loading. */
+  ready: boolean;
+  /** Signed-in account (cloud mode). */
+  account: { email: string | null; isAdmin: boolean } | null;
+  /** Latest verification request (cloud mode). */
+  verificationInfo: VerificationInfo | null;
   latestWeightKg: number | null;
-  completeOnboarding: (profile: Profile, weightKg: number) => void;
+  completeOnboarding: (profile: Profile, weightKg: number, credential?: string) => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => void;
   addDiaryEntries: (entries: Omit<DiaryEntry, "id">[]) => void;
   removeDiaryEntry: (id: string) => void;
@@ -184,13 +199,15 @@ interface Store extends PersistedState {
   addExercise: (e: Omit<ExerciseEntry, "id">) => void;
   updateExercise: (id: string, patch: Partial<ExerciseEntry>) => void;
   removeExercise: (id: string) => void;
-  resetAll: () => void;
+  /** Deletes all your data (cloud: on the server too; your sign-in stays unless deleteAccount). */
+  resetAll: (opts?: { deleteAccount?: boolean }) => Promise<void>;
 }
 
-const StoreContext = createContext<Store | null>(null);
+export const StoreContext = createContext<Store | null>(null);
 
-export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PersistedState>(load);
+/** On-device store: used when no Convex backend is configured. */
+export function LocalStoreProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<PersistedState>(loadLocal);
 
   useEffect(() => {
     try {
@@ -213,8 +230,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const latest = state.weights.at(-1);
     return {
       ...state,
+      mode: "local",
+      ready: true,
+      account: null,
+      verificationInfo: null,
       latestWeightKg: latest ? latest.weightKg : null,
-      completeOnboarding: (profile, weightKg) =>
+      completeOnboarding: async (profile, weightKg) =>
         setState((s) => ({ ...s, profile, weights: [{ date: todayIso(), weightKg }] })),
       updateProfile: (patch) => setState((s) => (s.profile ? { ...s, profile: { ...s.profile, ...patch } } : s)),
       addDiaryEntries: (entries) =>
@@ -254,7 +275,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateExercise: (id, patch) =>
         setState((s) => ({ ...s, exercises: s.exercises.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
       removeExercise: (id) => setState((s) => ({ ...s, exercises: s.exercises.filter((x) => x.id !== id) })),
-      resetAll: () => setState(EMPTY),
+      resetAll: async () => setState(EMPTY),
     };
   }, [state, logWeight]);
 

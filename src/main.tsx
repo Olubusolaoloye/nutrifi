@@ -1,16 +1,32 @@
-import { StrictMode } from "react";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { ConvexReactClient } from "convex/react";
+import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-import { StoreProvider } from "./state/store";
+import { ConvexStoreProvider } from "./state/cloudStore";
+import { LocalStoreProvider } from "./state/store";
 import "./styles.css";
+
+/** Set VITE_CONVEX_URL to use accounts and the cloud database; otherwise data stays on the device. */
+const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
+const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
+
+function Providers({ children }: { children: ReactNode }) {
+  if (!convex) return <LocalStoreProvider>{children}</LocalStoreProvider>;
+  return (
+    <ConvexAuthProvider client={convex}>
+      <ConvexStoreProvider>{children}</ConvexStoreProvider>
+    </ConvexAuthProvider>
+  );
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <StoreProvider>
+      <Providers>
         <App />
-      </StoreProvider>
+      </Providers>
     </BrowserRouter>
   </StrictMode>,
 );
