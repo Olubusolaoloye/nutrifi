@@ -6,12 +6,18 @@
 
 ## Your role
 
-You are a senior product designer. Design a **clickable, high-fidelity prototype** of the MVP for **Nutrifi**, a nutrition app for **Nigeria**. Produce:
+You are a senior product designer. Design a **clickable, high-fidelity prototype** of the MVP for **Nutrifi**, a nutrition app for **Nigeria**.
+
+**Platform: a web app first.** Nutrifi launches as a **mobile-first, responsive progressive web app (PWA)** built in React. People open it from a link (often shared on WhatsApp) and can "Add to home screen" so it feels like an app. A Google Play listing of the same web app comes later. Design for the browser, not a native app.
+
+Produce:
 
 1. A small **design system**: colours, type, spacing, components.
-2. **Mobile app screens** (Android-first, 360 × 800 dp frame).
-3. **Web screens** for the professional workbench (1440 px desktop, and still usable at 1024 px).
-4. **Linked user flows** so the prototype can be clicked through end to end.
+2. **Responsive screens** at three breakpoints:
+   - **Mobile, 360 × 800**: the main target; most consumers use Android phones.
+   - **Tablet, 768**.
+   - **Desktop, 1440**: consumer screens sit in a centred column or two-pane layout. The **Professional Workbench** uses the full desktop width and must stay usable at 1024.
+3. **Linked user flows** so the prototype can be clicked through end to end.
 
 Where this brief doesn't settle a design choice, decide it yourself and note why in one line.
 
@@ -28,7 +34,7 @@ Nutrifi helps Nigerians track and improve what they eat, using **Nigerian foods 
 | **Dietitian** (verified, Pro) | Licensed dietitians | Everything, plus the full **Professional Workbench** (BMR, energy requirements, calorie and macro distribution, nutrient food sources, export) |
 
 ### The key access rule ("hybrid model")
-- **Consumers never see formulas, equation names or editable macro splits.** They see one friendly result: *"Your daily target: about 2,200 kcal"*, plus a simple plate split ("about half your plate starches, a quarter protein…").
+- **Consumers never see formulas, equation names or editable macro splits.** They see one friendly result: *"Your daily target: about 1,700 kcal"*, plus a simple plate split ("about half your plate starches, a quarter protein…").
 - **Consumers who report a medical condition** (diabetes, hypertension, kidney disease, pregnancy, etc.) **do not get an automatic target**. They see a warm card: *"Because you have diabetes, your target should be set by a dietitian."* with a button: **"Talk to a dietitian (coming soon)"**.
 - **Students and dietitians** unlock the **Workbench**. They pick the equation, activity level and macro split; see every calculation step; compare equations side by side; and export results.
 - Locked pro features appear to consumers as **locked**: a padlock and the text "For dietitians & nutrition students". Never show them broken or empty.
@@ -62,7 +68,7 @@ Nutrifi helps Nigerians track and improve what they eat, using **Nigerian foods 
 
 ## 4. Navigation
 
-**Mobile bottom navigation (5 tabs):**
+**Mobile (< 768 px): bottom navigation (5 tabs).** **Tablet and desktop: the same items in a left sidebar.**
 1. **Home**: today's dashboard
 2. **Diary**: food log
 3. **Add (+)**: central quick-add button (food, water, weight)
@@ -78,7 +84,7 @@ Students and dietitians also see a **"Workbench"** entry, as a highlighted card 
 Design each screen's **default, empty, loading, error/offline** states where relevant.
 
 ### A. Onboarding and account
-1. **Splash** with logo.
+1. **Landing page** (public, also the PWA start URL): what Nutrifi does, "Get started" and "Log in", plus a short section for dietitians and students. It must load fast on 3G.
 2. **Welcome carousel** (3 slides): track Nigerian foods · know your body · get expert help.
 3. **Sign up / Log in**: phone number + OTP (primary), email, Google. Include a short privacy reassurance ("Your health data is private and protected under the Nigeria Data Protection Act").
 4. **Choose your role**: "I want to improve my nutrition" / "I'm a nutrition student" / "I'm a dietitian".
@@ -88,7 +94,7 @@ Design each screen's **default, empty, loading, error/offline** states where rel
    - Show a **"Verification pending"** state. They can use consumer features while they wait.
 6. **Profile setup** (consumer), one question per screen with a progress bar: sex, date of birth, height, weight, activity level (illustrated choices: "Mostly sitting", "On my feet a lot", "Very active / manual work"), goal (lose / maintain / gain weight, eat healthier), and **"Do you have any of these conditions?"** as a multi-select (diabetes, high blood pressure, kidney disease, pregnant, breastfeeding, none). Also dietary preferences (e.g. no pork, vegetarian) and allergies.
 7. **Your results**: BMI with category gauge, then either:
-   - **No condition:** "Your daily target: about 2,200 kcal" + plate split illustration + water target; or
+   - **No condition:** "Your daily target: about 1,700 kcal" (with a goal of losing weight) + plate split illustration + water target; or
    - **With condition:** the "set by a dietitian" card, plus general healthy-eating tips.
 8. **Reminders permission**: choose meal-time, water and weigh-in reminders; optional WhatsApp reminders toggle.
 9. **Paywall / plans** (shown after setup, skippable): Free vs Premium (₦2,500/month, ₦25,000/year as placeholders). Student and Pro plans are shown only to those roles.
@@ -155,8 +161,10 @@ The **core pro screen**. Layout: **inputs on the left, results on the right**, w
 
 ### I. System screens
 - Offline banner ("You're offline. Your logs will sync when you reconnect").
+- **"Add Nutrifi to your home screen"** prompt: an Android install banner, plus an iPhone instruction sheet (Share → Add to Home Screen). Show it after the user's first logged meal, not on first visit.
+- **"New version available — Refresh"** update banner.
 - Generic error, empty states (with illustrations), loading skeletons.
-- Push notification examples (meal, water, weigh-in), plus a WhatsApp reminder mock.
+- Browser push notification examples (meal, water, weigh-in), plus a WhatsApp reminder mock. **WhatsApp/SMS is the main reminder channel**, because web push on iPhone only works once the app has been added to the home screen.
 
 ---
 
@@ -164,8 +172,8 @@ The **core pro screen**. Layout: **inputs on the left, results on the right**, w
 
 **Sample consumer:** Adaeze, female, 30 y, 165 cm, 70 kg, moderately active, goal: lose weight, no medical conditions.
 - BMI = 70 / 1.65² = **25.7 → "Overweight"**
-- Daily target shown to her: **"about 2,200 kcal"**
-- Water target: **about 2.4 litres** (~5 sachets)
+- Energy needs to maintain her weight ≈ 2,200 kcal. Her goal is weight loss, so the target shown to her is **"about 1,700 kcal"** (maintenance − 500, rounded to the nearest 50).
+- Water target: **about 2.5 litres** (2,450 ml at 35 ml/kg, ~5 sachets)
 
 **Same person in the Workbench (pro view):**
 | Equation | BMR (kcal/day) |
@@ -195,7 +203,7 @@ The **core pro screen**. Layout: **inputs on the left, results on the right**, w
 
 ## 7. Key user flows to link in the prototype
 
-1. **New consumer:** Splash → Welcome → Sign up (OTP) → Role: consumer → Profile setup → Results (target) → Reminders → Paywall (skip) → Home.
+1. **New consumer:** Landing page → Welcome → Sign up (OTP) → Role: consumer → Profile setup → Results (target) → Reminders → Paywall (skip) → Home.
 2. **Consumer with a condition:** profile setup with "Diabetes" ticked → Results with "set by a dietitian" card → Home without calorie ring.
 3. **Log a meal:** Home → + Add → search "eba" → portion picker (medium wrap) → add combo with egusi + beef → Diary shows updated total → Home ring updates.
 4. **Log water:** Home water card → tap sachet → progress updates.
@@ -221,7 +229,7 @@ Provide **wireframe-level** concepts only, so the design system scales to:
 ## 9. Deliverables checklist
 
 - [ ] Design system page: colours (light + dark), type scale, spacing, grid, icons, components (buttons, inputs, chips, cards, rings/gauges, charts, bottom nav, sheets, snackbars, badges incl. "Verified dietitian", "Verified student", "Reviewed by a dietitian", "Locked/Pro")
-- [ ] All MVP mobile screens in section 5, with states
+- [ ] All MVP screens in section 5 at mobile (360) with states, plus tablet (768) and desktop (1440) versions of Home, Diary, Add food, Progress and Learn
 - [ ] Workbench web screens (full) + mobile simplified version
 - [ ] Clickable prototype linking the 9 flows in section 7
 - [ ] Low-fi wireframes for the section 8 features

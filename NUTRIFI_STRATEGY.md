@@ -207,6 +207,7 @@ Treat prices as hypotheses and test them with real users before committing (see 
 
 ### Phase 1 — MVP (≈ 3–4 months)
 Goal: a useful daily habit app plus the pro workbench.
+- Delivered as a **mobile-first React PWA** (web app first; Play Store wrapper soon after).
 - Accounts, profiles and roles (consumer / student / dietitian) with verification.
 - BMI + weight trend; simple daily target for consumers.
 - **Pro workbench:** BMR, TEE and calorie/macro distribution, with equation choice and export.
@@ -237,8 +238,9 @@ Goal: a useful daily habit app plus the pro workbench.
 
 | Layer | Recommendation | Why |
 |---|---|---|
-| Mobile app | **Flutter** (or React Native) — Android first | One codebase. Android dominates the Nigerian market. Good on low-end devices. |
-| Web | Pro workbench + admin as a web app (Next.js) | Dietitians and students often work on laptops |
+| App (Phase 1) | **React + Vite progressive web app (PWA)**, mobile-first and responsive | One codebase for the consumer app and the Pro Workbench. No big download, shareable on WhatsApp, instant updates |
+| Play Store (Phase 1.5) | Package the same PWA as a Trusted Web Activity / Capacitor wrapper | A store listing for trust and discovery, without a rebuild |
+| Native (Phase 3+, only if needed) | React Native, to reuse the React skills and code | Only if heavy camera AI or device sensors need it |
 | Backend | **PostgreSQL** via Supabase (auth, storage, row-level security) or a NestJS/Node API | Fast to build; row-level security fits strict per-role access |
 | Calculation engine | One versioned, server-side "nutrition engine" module (BMR, TEE, macros, z-scores, gestational weight gain) | One source of truth, tested against reference values, auditable |
 | Offline | Local cache of the food database + offline diary logging that syncs later | Patchy connectivity, expensive data |
