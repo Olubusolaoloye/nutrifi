@@ -96,13 +96,6 @@
 
 /* Hero */
 .lp-hero { max-width: var(--lp-max); margin: 0 auto; padding: 3.5rem 20px 2rem; display: grid; gap: 3.5rem; align-items: center; }
-.lp-pill {
-  display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.42rem 0.9rem; border-radius: 999px; margin-bottom: 1.6rem;
-  background: rgb(255 255 255 / 0.65); border: 1px solid var(--lp-line); font-size: 0.82rem; font-weight: 600; color: var(--lp-text);
-  backdrop-filter: blur(8px);
-}
-.lp-pill svg { color: var(--brand-text); }
-@media (prefers-color-scheme: dark) { .lp-pill { background: rgb(255 255 255 / 0.05); } }
 .lp-lead { font-size: 1.12rem; max-width: 34rem; margin: 1.6rem 0 2rem; }
 .lp-cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .lp-proof { list-style: none; padding: 0; margin: 1.6rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; font-size: 0.86rem; font-weight: 600; color: var(--lp-muted); }

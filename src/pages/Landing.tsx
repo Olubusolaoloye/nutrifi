@@ -13,7 +13,6 @@ import {
   NotebookPen,
   ShieldCheck,
   ShoppingBasket,
-  Sparkles,
   Stethoscope,
 } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -175,7 +174,6 @@ export function Landing() {
       {/* Hero */}
       <section className="lp-hero">
         <div className="lp-hero-copy" data-reveal>
-          <span className="lp-pill"><Sparkles size={14} aria-hidden /> Nutrition and fitness, made simple</span>
           <h1>
             Eat well.
             <br />
