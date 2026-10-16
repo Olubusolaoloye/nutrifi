@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card } from "../components/ui";
+import { Card, PageHeader } from "../components/ui";
 import { BMI_CATEGORY_LABEL, bmiCategory, calculateBmi } from "../lib/nutrition";
 import { fmt } from "../state/derived";
 import { todayIso, useStore } from "../state/store";
@@ -14,9 +14,7 @@ export function Progress() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <h1>Progress</h1>
-      </header>
+      <PageHeader title="Progress" subtitle="Your weight and BMI over time" />
 
       <Card title="Log today's weight">
         <form

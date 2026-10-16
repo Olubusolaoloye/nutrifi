@@ -91,6 +91,10 @@ export function Onboarding() {
 
   return (
     <div className="onboarding">
+      <div className="landing-brand" style={{ marginBottom: "1rem" }}>
+        <img src="/icon.svg" alt="" width={32} height={32} /> Nutrifi
+      </div>
+      <div className="onboarding-card">
       <div className="progress-dots" aria-label={`Step ${step + 1} of ${steps.length}`}>
         <div className="progress-fill" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
       </div>
@@ -196,6 +200,7 @@ export function Onboarding() {
         <button className="btn btn-primary" disabled={!canContinue} onClick={next}>
           {current === "results" ? "Go to my dashboard" : "Continue"}
         </button>
+      </div>
       </div>
     </div>
   );

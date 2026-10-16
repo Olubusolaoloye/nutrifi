@@ -1,3 +1,4 @@
+import { Printer } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Card, Locked } from "../components/ui";
 import { FOODS, nutrientsFor } from "../data/foods";
@@ -101,13 +102,13 @@ export function Workbench() {
 
   return (
     <div className="page page-wide">
-      <header className="page-head row">
+      <header className="page-head">
         <h1>Professional Workbench</h1>
         <div className="row no-print">
           <label className="toggle">
             <input type="checkbox" checked={showWorking} onChange={(e) => setShowWorking(e.target.checked)} /> Show working
           </label>
-          <button className="btn btn-secondary" onClick={() => window.print()}>Export / print</button>
+          <button className="btn btn-primary" onClick={() => window.print()}><Printer size={18} /> Export / print</button>
         </div>
       </header>
 

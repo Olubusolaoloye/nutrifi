@@ -1,31 +1,39 @@
+import { ArrowLeft, Clock, Share2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { PageHeader, Thumb } from "../components/ui";
 import { ARTICLES, type ArticleScope } from "../data/articles";
 
 const SCOPES: Array<ArticleScope | "All"> = ["All", "Global", "Nigeria", "Prevention"];
+const SCOPE_EMOJI: Record<ArticleScope, string> = { Global: "🌍", Nigeria: "🇳🇬", Prevention: "🛡️" };
+const ARTICLE_EMOJI: Record<string, string> = { "swallow-portions": "🫓", "water-sachets": "💧", "salt-bp": "🧂", "fruit-veg": "🥬" };
 
 export function Learn() {
   const [scope, setScope] = useState<ArticleScope | "All">("All");
   const items = ARTICLES.filter((a) => scope === "All" || a.scope === scope);
   return (
     <div className="page">
-      <header className="page-head">
-        <h1>Learn</h1>
-        <div className="chip-row">
+      <PageHeader title="Learn" subtitle="Nutrition news and tips, reviewed by dietitians">
+        <div className="chip-group" role="group" aria-label="Filter">
           {SCOPES.map((s) => (
             <button key={s} className={`chip${s === scope ? " on" : ""}`} onClick={() => setScope(s)}>
               {s === "Prevention" ? "Prevention tips" : s}
             </button>
           ))}
         </div>
-      </header>
+      </PageHeader>
       <div className="grid">
         {items.map((a) => (
           <Link key={a.id} to={`/learn/${a.id}`} className="card article-card">
-            <span className="badge">{a.scope}</span>
-            <h2>{a.title}</h2>
-            <p className="muted">{a.summary}</p>
-            <span className="muted small">{a.readMinutes} min read</span>
+            <Thumb emoji={ARTICLE_EMOJI[a.id] ?? SCOPE_EMOJI[a.scope]} />
+            <div>
+              <div className="food-row-top">
+                <span className="tag tag-outline">{SCOPE_EMOJI[a.scope]} {a.scope}</span>
+                <span className="muted small row" style={{ gap: "0.25rem" }}><Clock size={13} /> {a.readMinutes} min</span>
+              </div>
+              <h2>{a.title}</h2>
+              <p className="muted small">{a.summary}</p>
+            </div>
           </Link>
         ))}
       </div>
@@ -40,16 +48,22 @@ export function ArticlePage() {
   const shareText = encodeURIComponent(`${a.title} — ${window.location.href}`);
   return (
     <article className="page article">
-      <Link to="/learn" className="link">← Learn</Link>
-      <span className="badge">{a.scope}</span>
-      <h1>{a.title}</h1>
-      {a.body.map((p, i) => (
-        <p key={i}>{p}</p>
-      ))}
-      <p className="muted small">{a.source}</p>
-      <a className="btn btn-secondary" href={`https://wa.me/?text=${shareText}`} target="_blank" rel="noreferrer">
-        Share on WhatsApp
-      </a>
+      <Link to="/learn" className="btn btn-ghost btn-small"><ArrowLeft size={16} /> Learn</Link>
+      <div className="card">
+        <Thumb emoji={ARTICLE_EMOJI[a.id] ?? SCOPE_EMOJI[a.scope]} size="lg" />
+        <div className="food-row-top" style={{ marginTop: "1rem" }}>
+          <span className="tag tag-outline">{a.scope}</span>
+          <span className="badge badge-ok"><ShieldCheck size={13} /> Dietitian review pending</span>
+        </div>
+        <h1>{a.title}</h1>
+        {a.body.map((p, i) => (
+          <p key={i}>{p}</p>
+        ))}
+        <p className="muted small">{a.source}</p>
+        <a className="btn btn-primary" href={`https://wa.me/?text=${shareText}`} target="_blank" rel="noreferrer">
+          <Share2 size={16} /> Share on WhatsApp
+        </a>
+      </div>
     </article>
   );
 }

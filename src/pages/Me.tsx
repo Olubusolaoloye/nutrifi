@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Avatar } from "../components/Layout";
 import { Card, Disclaimer, Locked } from "../components/ui";
 import { CONDITION_LABEL, PAL } from "../lib/nutrition";
 import { bodySummary, fmt } from "../state/derived";
@@ -15,13 +16,16 @@ export function Me() {
 
   return (
     <div className="page">
-      <header className="page-head">
+      <header className="page-head" style={{ justifyContent: "flex-start" }}>
+        <Avatar name={profile.name} />
+        <div className="page-head-title">
         <h1>{profile.name}</h1>
-        <p className="muted">
+        <p className="muted" style={{ margin: 0 }}>
           {ROLE_LABEL[profile.role]}
           {profile.verification === "verified" && <span className="badge badge-ok"> ✓ Verified</span>}
           {profile.verification === "pending" && <span className="badge"> Verification pending</span>}
         </p>
+        </div>
       </header>
 
       <Card title="My details">
