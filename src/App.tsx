@@ -10,6 +10,12 @@ import { Me } from "./pages/Me";
 import { Onboarding } from "./pages/Onboarding";
 import { Progress } from "./pages/Progress";
 import { Workbench } from "./pages/Workbench";
+import { Calendar } from "./pages/Calendar";
+import { Exercises } from "./pages/Exercises";
+import { Grocery } from "./pages/Grocery";
+import { MealPlan } from "./pages/MealPlan";
+import { Messages } from "./pages/Messages";
+import { RecipeDetail, Recipes } from "./pages/Recipes";
 import { useStore } from "./state/store";
 
 function RequireProfile({ children }: { children: ReactNode }) {
@@ -38,6 +44,13 @@ export default function App() {
         <Route path="/learn/:id" element={<ArticlePage />} />
         <Route path="/me" element={<Me />} />
         <Route path="/workbench" element={<Workbench />} />
+        <Route path="/recipes" element={<Recipes />} />
+        <Route path="/recipes/:id" element={<RecipeDetail />} />
+        <Route path="/plan" element={<MealPlan />} />
+        <Route path="/grocery" element={<Grocery />} />
+        <Route path="/calendar" element={<Calendar />} />
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/exercises" element={<Exercises />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

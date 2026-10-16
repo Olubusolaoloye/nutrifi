@@ -188,3 +188,45 @@ export function Locked() {
     </div>
   );
 }
+
+type Tone = "kcal" | "carbs" | "protein" | "fat" | "ink";
+
+/** Top-of-page summary card: coloured icon tile, label, value and an optional change vs a previous period. */
+export function StatCard({ icon, tone, label, value, unit, delta }: { icon: ReactNode; tone: Tone; label: string; value: string; unit?: string; delta?: number | null }) {
+  return (
+    <div className="stat-card">
+      <span className={`stat-icon tone-${tone}`} aria-hidden>{icon}</span>
+      <div className="grow">
+        <span className="stat-label">{label}</span>
+        <div className="stat-line">
+          <strong>{value}</strong>
+          {unit && <small>{unit}</small>}
+        </div>
+        {delta !== undefined && delta !== null && Number.isFinite(delta) && (
+          <span className={`delta ${delta >= 0 ? "up" : "down"}`}>
+            {delta >= 0 ? "↗" : "↘"} {delta >= 0 ? "+" : ""}{fmt(delta, 1)}% <span className="muted">vs last week</span>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Modal on desktop, bottom sheet on mobile. */
+export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="sheet-backdrop" role="presentation" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-head">
+          <h2>{title}</h2>
+          <button className="icon-btn sm ghost" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="sheet-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function SampleNotice({ children }: { children: ReactNode }) {
+  return <p className="sample-notice">{children}</p>;
+}

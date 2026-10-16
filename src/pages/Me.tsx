@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Avatar } from "../components/Layout";
+import { Link } from "react-router-dom";
+import { Avatar, NAV_ENTRIES } from "../components/Layout";
 import { Card, Disclaimer, Locked } from "../components/ui";
 import { CONDITION_LABEL, PAL } from "../lib/nutrition";
 import { bodySummary, fmt } from "../state/derived";
@@ -27,6 +28,15 @@ export function Me() {
         </p>
         </div>
       </header>
+
+      <section className="more-grid" aria-label="All features">
+        {NAV_ENTRIES.filter((n) => n.to !== "/home").map((n) => (
+          <Link key={n.to} to={n.to} className="more-item">
+            <span className="more-icon"><n.icon size={20} /></span>
+            <span>{n.label}</span>
+          </Link>
+        ))}
+      </section>
 
       <Card title="My details">
         <dl className="details">

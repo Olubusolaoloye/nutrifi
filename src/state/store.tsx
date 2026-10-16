@@ -26,6 +26,8 @@ export interface DiaryEntry {
   foodId: string;
   grams: number;
   portionLabel: string;
+  /** When it was logged (ISO). Older entries may not have it. */
+  loggedAt?: string;
 }
 
 /** A note slot: one per meal, plus a whole-day reflection. */
@@ -66,16 +68,70 @@ export interface WeightEntry {
   weightKg: number;
 }
 
+/** Meal plan: date → meal → recipe id. */
+export type MealPlan = Record<string, Partial<Record<Meal, string>>>;
+
+export interface GroceryState {
+  people: number;
+  /** Ingredient key → purchased. */
+  purchased: Record<string, boolean>;
+  /** Ingredient key → quantity the user changed it to. */
+  qtyOverride: Record<string, number>;
+}
+
+export type EventType = "meal" | "activity" | "appointment";
+export const EVENT_TYPE_LABEL: Record<EventType, string> = {
+  meal: "Meal planning",
+  activity: "Physical activity",
+  appointment: "Appointment",
+};
+
+export interface CalendarEvent {
+  id: string;
+  date: string;
+  time: string; // HH:MM
+  type: EventType;
+  title: string;
+  location?: string;
+  note?: string;
+}
+
+export type ExerciseStatus = "completed" | "planned" | "skipped";
+
+export interface ExerciseEntry {
+  id: string;
+  date: string;
+  activityId: string;
+  minutes: number;
+  sets?: number;
+  reps?: number;
+  status: ExerciseStatus;
+}
+
 interface PersistedState {
   profile: Profile | null;
   diary: DiaryEntry[];
   water: Record<string, number>; // date → ml
   weights: WeightEntry[];
   notes: Record<string, DiaryNote>; // noteKey(date, slot) → note
+  plan: MealPlan;
+  grocery: GroceryState;
+  events: CalendarEvent[];
+  exercises: ExerciseEntry[];
 }
 
 const STORAGE_KEY = "nutrifi:v1";
-const EMPTY: PersistedState = { profile: null, diary: [], water: {}, weights: [], notes: {} };
+const EMPTY: PersistedState = {
+  profile: null,
+  diary: [],
+  water: {},
+  weights: [],
+  notes: {},
+  plan: {},
+  grocery: { people: 1, purchased: {}, qtyOverride: {} },
+  events: [],
+  exercises: [],
+};
 
 function load(): PersistedState {
   try {
@@ -87,6 +143,19 @@ function load(): PersistedState {
 }
 
 export const todayIso = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local time
+
+export function shiftDate(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString("en-CA");
+}
+
+/** The 7 dates (Mon–Sun) of the week containing `iso`. */
+export function weekDates(iso: string): string[] {
+  const d = new Date(`${iso}T12:00:00`);
+  const monday = shiftDate(iso, -((d.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+}
 
 export function ageFromBirthDate(birthDate: string, on = new Date()): number {
   const b = new Date(birthDate);
@@ -106,6 +175,15 @@ interface Store extends PersistedState {
   logWeight: (date: string, weightKg: number) => void;
   /** Saves a note, or deletes it when `note` is null. */
   setNote: (date: string, slot: NoteSlot, note: Omit<DiaryNote, "updatedAt"> | null) => void;
+  /** Sets or clears (recipeId null) one meal slot in the plan. */
+  setPlanSlot: (date: string, meal: Meal, recipeId: string | null) => void;
+  replacePlan: (items: Array<{ date: string; meal: Meal; recipeId: string }>) => void;
+  updateGrocery: (patch: Partial<GroceryState>) => void;
+  addEvent: (e: Omit<CalendarEvent, "id">) => void;
+  removeEvent: (id: string) => void;
+  addExercise: (e: Omit<ExerciseEntry, "id">) => void;
+  updateExercise: (id: string, patch: Partial<ExerciseEntry>) => void;
+  removeExercise: (id: string) => void;
   resetAll: () => void;
 }
 
@@ -142,7 +220,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addDiaryEntries: (entries) =>
         setState((s) => ({
           ...s,
-          diary: [...s.diary, ...entries.map((e) => ({ ...e, id: crypto.randomUUID() }))],
+          diary: [...s.diary, ...entries.map((e) => ({ loggedAt: new Date().toISOString(), ...e, id: crypto.randomUUID() }))],
         })),
       removeDiaryEntry: (id) => setState((s) => ({ ...s, diary: s.diary.filter((e) => e.id !== id) })),
       addWater: (date, ml) =>
@@ -156,6 +234,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           else delete notes[key];
           return { ...s, notes };
         }),
+      setPlanSlot: (date, meal, recipeId) =>
+        setState((s) => {
+          const day = { ...(s.plan[date] ?? {}) };
+          if (recipeId) day[meal] = recipeId;
+          else delete day[meal];
+          return { ...s, plan: { ...s.plan, [date]: day } };
+        }),
+      replacePlan: (items) =>
+        setState((s) => {
+          const plan: MealPlan = { ...s.plan };
+          for (const it of items) plan[it.date] = { ...(plan[it.date] ?? {}), [it.meal]: it.recipeId };
+          return { ...s, plan };
+        }),
+      updateGrocery: (patch) => setState((s) => ({ ...s, grocery: { ...s.grocery, ...patch } })),
+      addEvent: (e) => setState((s) => ({ ...s, events: [...s.events, { ...e, id: crypto.randomUUID() }] })),
+      removeEvent: (id) => setState((s) => ({ ...s, events: s.events.filter((e) => e.id !== id) })),
+      addExercise: (e) => setState((s) => ({ ...s, exercises: [...s.exercises, { ...e, id: crypto.randomUUID() }] })),
+      updateExercise: (id, patch) =>
+        setState((s) => ({ ...s, exercises: s.exercises.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
+      removeExercise: (id) => setState((s) => ({ ...s, exercises: s.exercises.filter((x) => x.id !== id) })),
       resetAll: () => setState(EMPTY),
     };
   }, [state, logWeight]);

@@ -1,12 +1,19 @@
 import {
   BookOpen,
   Calculator,
+  CalendarDays,
+  CalendarRange,
+  ChefHat,
+  Dumbbell,
   LayoutDashboard,
+  MessageCircle,
   NotebookPen,
   Plus,
+  ShoppingBasket,
   TrendingUp,
   UserRound,
   WifiOff,
+  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
@@ -39,6 +46,36 @@ export function Avatar({ name }: { name: string }) {
   return <span className="avatar" aria-hidden>{name.trim()[0]?.toUpperCase() ?? "N"}</span>;
 }
 
+export interface NavEntry {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: number;
+  sub?: boolean;
+}
+
+/** Full menu, used by the desktop sidebar and the "More" grid on Me. */
+export const NAV_ENTRIES: NavEntry[] = [
+  { to: "/home", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/calendar", label: "Calendar", icon: CalendarDays },
+  { to: "/messages", label: "Messages", icon: MessageCircle, badge: 2 },
+  { to: "/recipes", label: "Healthy menu", icon: ChefHat },
+  { to: "/plan", label: "Meal plan", icon: CalendarRange },
+  { to: "/grocery", label: "Grocery list", icon: ShoppingBasket, sub: true },
+  { to: "/diary", label: "Food diary", icon: NotebookPen },
+  { to: "/progress", label: "Progress", icon: TrendingUp },
+  { to: "/exercises", label: "Exercises", icon: Dumbbell },
+  { to: "/learn", label: "Health insights", icon: BookOpen },
+];
+
+const MOBILE_TABS: NavEntry[] = [
+  { to: "/home", label: "Home", icon: LayoutDashboard },
+  { to: "/diary", label: "Diary", icon: NotebookPen },
+  { to: "/add", label: "Add", icon: Plus },
+  { to: "/plan", label: "Plan", icon: CalendarRange },
+  { to: "/me", label: "Me", icon: UserRound },
+];
+
 export function Layout() {
   const { profile } = useStore();
   const online = useOnline();
@@ -47,30 +84,23 @@ export function Layout() {
 
   return (
     <div className="shell">
-      <nav className="nav" aria-label="Main">
+      <nav className="sidebar" aria-label="Main">
         <div className="nav-brand"><Brand /></div>
-        <NavLink to="/home" className={cls()}>
-          <span className="nav-icon"><LayoutDashboard size={20} /></span><span>Home</span>
-        </NavLink>
-        <NavLink to="/diary" className={cls()}>
-          <span className="nav-icon"><NotebookPen size={20} /></span><span>Diary</span>
-        </NavLink>
-        <NavLink to="/add" className={cls("nav-add")} aria-label="Add food">
-          <span className="nav-icon"><Plus size={22} /></span><span>Add food</span>
-        </NavLink>
-        <NavLink to="/progress" className={cls("nav-desktop-only")}>
-          <span className="nav-icon"><TrendingUp size={20} /></span><span>Progress</span>
-        </NavLink>
-        <NavLink to="/learn" className={cls()}>
-          <span className="nav-icon"><BookOpen size={20} /></span><span>Learn</span>
-        </NavLink>
+        <NavLink to="/add" className="btn btn-primary sidebar-cta"><Plus size={18} /> Log food</NavLink>
+        {NAV_ENTRIES.map((n) => (
+          <NavLink key={n.to} to={n.to} className={cls(n.sub ? "nav-sub" : "")}>
+            <span className="nav-icon"><n.icon size={19} /></span>
+            <span className="grow">{n.label}</span>
+            {n.badge ? <span className="nav-badge" aria-label={`${n.badge} unread`}>{n.badge}</span> : null}
+          </NavLink>
+        ))}
         {pro && (
-          <NavLink to="/workbench" className={cls("nav-desktop-only")}>
-            <span className="nav-icon"><Calculator size={20} /></span><span>Workbench</span>
+          <NavLink to="/workbench" className={cls()}>
+            <span className="nav-icon"><Calculator size={19} /></span><span className="grow">Workbench</span><span className="nav-pro">PRO</span>
           </NavLink>
         )}
         <NavLink to="/me" className={cls()}>
-          <span className="nav-icon"><UserRound size={20} /></span><span>Me</span>
+          <span className="nav-icon"><UserRound size={19} /></span><span className="grow">Me &amp; settings</span>
         </NavLink>
         <div className="nav-spacer" />
         <div className="nav-promo promo">
@@ -79,6 +109,16 @@ export function Layout() {
           <button className="btn btn-small" disabled>Coming soon</button>
         </div>
       </nav>
+
+      <nav className="tabbar" aria-label="Quick">
+        {MOBILE_TABS.map((n) => (
+          <NavLink key={n.to} to={n.to} className={cls(n.to === "/add" ? "nav-add" : "")} aria-label={n.to === "/add" ? "Add food" : undefined}>
+            <span className="nav-icon"><n.icon size={n.to === "/add" ? 22 : 20} /></span>
+            <span>{n.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
       <main className="main">
         <div className="mobile-top">
           <Brand />

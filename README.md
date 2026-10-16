@@ -23,6 +23,15 @@ npm run build      # production build in dist/
 | Home dashboard, food diary, Nigerian portion picker + combos, water, weight/BMI progress | `src/pages/` |
 | Learn newsfeed with WhatsApp sharing | `src/pages/Learn.tsx` |
 | Professional Workbench (verified students and dietitians only) | `src/pages/Workbench.tsx` |
+| Food diary: day view with meal notes and day reflection, week table with "Thoughts", weekly stat cards | `src/pages/Diary.tsx`, `src/components/NoteCard.tsx` |
+| Add food: Naija, Continental and International sections | `src/pages/AddFood.tsx`, `src/data/foods.ts` |
+| Healthy menu and recipe pages (servings scaling, ingredients, directions) | `src/pages/Recipes.tsx`, `src/data/recipes.ts` |
+| Weekly meal plan with sample-week generator | `src/pages/MealPlan.tsx` |
+| Grocery list built from the plan, with ₦ estimates and purchased status | `src/pages/Grocery.tsx` |
+| Calendar of planned meals, activities and appointments | `src/pages/Calendar.tsx` |
+| Exercise log with calories from MET values | `src/pages/Exercises.tsx`, `src/lib/nutrition/activity.ts` |
+| Health insights (featured, popular, tags, related articles) | `src/pages/Learn.tsx`, `src/data/articles.ts` |
+| Messages (preview with sample conversations) | `src/pages/Messages.tsx` |
 
 **Hybrid rule:** consumers see one simple daily target. People who report a medical condition, and anyone under 18, are sent to a dietitian instead of getting a target. Only verified students and dietitians can use the full Workbench.
 
@@ -30,4 +39,5 @@ npm run build      # production build in dist/
 
 - Data is stored in the browser (`localStorage`). There's no backend or accounts yet.
 - Verification is simulated with a "Demo: approve my verification" button on the Me page.
-- Food values in `src/data/foods.ts` and the articles are **sample placeholders, not for clinical use**. They'll be replaced with the West African / Nigerian food composition tables and articles reviewed by dietitians.
+- Messaging is a preview with sample conversations; it launches with paid interventions.
+- Food values, recipes, ₦ grocery prices and articles are **sample placeholders, not for clinical use**. They'll be replaced with the West African / Nigerian food composition tables and articles reviewed by dietitians.

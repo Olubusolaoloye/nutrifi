@@ -5,6 +5,7 @@ import { Avatar } from "../components/Layout";
 import { Card, DietitianCard, MacroTiles, MealTag, NutrientChips, PageHeader, Ring, SearchBox, Segments, Thumb } from "../components/ui";
 import { ARTICLES } from "../data/articles";
 import { CUISINES, foodById, nutrientsFor, type Cuisine } from "../data/foods";
+import { recipeById } from "../data/recipes";
 import { BMI_CATEGORY_LABEL, SACHET_ML, bmiCategory } from "../lib/nutrition";
 import { bodySummary, dailyTotals, fmt } from "../state/derived";
 import { MEALS, canUseWorkbench, todayIso, useStore, type Meal } from "../state/store";
@@ -35,7 +36,7 @@ const POPULAR: Record<Cuisine, Array<{ name: string; emoji: string; meal: Meal; 
 
 export function Home() {
   const navigate = useNavigate();
-  const { profile, diary, water, latestWeightKg, addWater } = useStore();
+  const { profile, diary, water, plan, latestWeightKg, addWater } = useStore();
   const [filter, setFilter] = useState<Meal | "All">("All");
   const [query, setQuery] = useState("");
   const [cuisine, setCuisine] = useState<Cuisine>("Nigerian");
@@ -166,6 +167,28 @@ export function Home() {
             </div>
           </Card>
 
+          <Card title="Today's plan" action={<Link to="/plan" className="link">Meal plan →</Link>}>
+            {MEALS.some((m) => plan[today]?.[m]) ? (
+              <ul className="entry-list">
+                {MEALS.map((m) => {
+                  const r = recipeById(plan[today]?.[m] ?? "");
+                  return r ? (
+                    <li key={m}>
+                      <Thumb emoji={r.emoji} size="sm" />
+                      <div><span className="muted small">{m}</span><Link to={`/recipes/${r.id}`} className="row-title small">{r.name}</Link></div>
+                      <span className="muted small">{r.kcal} kcal</span>
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+            ) : (
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="muted small">Nothing planned for today.</span>
+                <Link to="/plan" className="btn btn-secondary btn-small">Plan your week</Link>
+              </div>
+            )}
+          </Card>
+
           <Card title="Weight & BMI" action={<Link to="/progress" className="link">Progress →</Link>}>
             <div className="stat">
               <strong className="stat-value">{fmt(latestWeightKg, 1)} kg</strong>
@@ -203,7 +226,7 @@ export function Home() {
 
           <div className="section-title"><h2>Tip of the day</h2></div>
           <Link to={`/learn/${tip.id}`} className="card tip">
-            <span className="tag tag-outline">{tip.scope}</span>
+            <span className="tag tag-breakfast">{tip.topic}</span>
             <strong>{tip.title}</strong>
             <span className="muted small">{tip.summary}</span>
           </Link>

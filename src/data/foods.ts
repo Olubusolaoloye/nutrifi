@@ -1,6 +1,7 @@
 // SAMPLE DATA — placeholder values for the prototype, NOT for clinical use.
 // Real values will come from the West African / Nigerian food composition tables
 // and, for continental and international dishes, USDA FoodData Central.
+import { recipeById, type Recipe } from "./recipes";
 
 export interface Portion {
   label: string;
@@ -160,7 +161,35 @@ export function searchFoods(query: string): Food[] {
   );
 }
 
+export const RECIPE_PREFIX = "recipe:";
+
+/** A recipe as a loggable food: 100 "g" = 1 serving, so the diary maths works unchanged. */
+function recipeAsFood(r: Recipe): Food {
+  return {
+    id: RECIPE_PREFIX + r.id,
+    name: r.name,
+    cuisine: r.cuisine,
+    category: "Recipe",
+    emoji: r.emoji,
+    aliases: ["recipe"],
+    kcal: r.kcal,
+    carbs: r.carbs,
+    protein: r.protein,
+    fat: r.fat,
+    portions: [
+      { label: "½ serving", grams: 50 },
+      { label: "1 serving", grams: 100 },
+      { label: "2 servings", grams: 200 },
+    ],
+    source: "Sample recipe – not for clinical use",
+  };
+}
+
 export function foodById(id: string): Food | undefined {
+  if (id.startsWith(RECIPE_PREFIX)) {
+    const r = recipeById(id.slice(RECIPE_PREFIX.length));
+    return r ? recipeAsFood(r) : undefined;
+  }
   return FOODS.find((f) => f.id === id);
 }
 
