@@ -4,26 +4,41 @@ import { Link, useNavigate } from "react-router-dom";
 import { Avatar } from "../components/Layout";
 import { Card, DietitianCard, MacroTiles, MealTag, NutrientChips, PageHeader, Ring, SearchBox, Segments, Thumb } from "../components/ui";
 import { ARTICLES } from "../data/articles";
-import { foodById, nutrientsFor } from "../data/foods";
+import { CUISINES, foodById, nutrientsFor, type Cuisine } from "../data/foods";
 import { BMI_CATEGORY_LABEL, SACHET_ML, bmiCategory } from "../lib/nutrition";
 import { bodySummary, dailyTotals, fmt } from "../state/derived";
 import { MEALS, canUseWorkbench, todayIso, useStore, type Meal } from "../state/store";
 
 const ROLE_LABEL = { consumer: "Member", student: "Nutrition student", dietitian: "Dietitian" };
 
-/** Popular local combos for quick logging (opens Add food with the first item searched). */
-const POPULAR = [
-  { name: "Eba with Egusi soup & Beef", emoji: "🍲", meal: "Lunch" as Meal, query: "eba" },
-  { name: "Jollof rice, Dodo & Chicken", emoji: "🍛", meal: "Lunch" as Meal, query: "jollof" },
-  { name: "Bread & Akara with Tea", emoji: "🧆", meal: "Breakfast" as Meal, query: "akara" },
-  { name: "Beans & Fried plantain", emoji: "🫘", meal: "Dinner" as Meal, query: "beans" },
-];
+/** Popular dishes for quick logging, by cuisine (opens Add food with the dish searched). */
+const POPULAR: Record<Cuisine, Array<{ name: string; emoji: string; meal: Meal; query: string }>> = {
+  Nigerian: [
+    { name: "Eba with Egusi soup & Beef", emoji: "🍲", meal: "Lunch", query: "eba" },
+    { name: "Jollof rice, Dodo & Chicken", emoji: "🍛", meal: "Lunch", query: "jollof" },
+    { name: "Bread & Akara with Tea", emoji: "🧆", meal: "Breakfast", query: "akara" },
+    { name: "Beans & Fried plantain", emoji: "🫘", meal: "Dinner", query: "beans" },
+  ],
+  Continental: [
+    { name: "Full English breakfast", emoji: "🍳", meal: "Breakfast", query: "english" },
+    { name: "Grilled salmon & vegetables", emoji: "🐟", meal: "Dinner", query: "salmon" },
+    { name: "Spaghetti bolognese", emoji: "🍝", meal: "Lunch", query: "bolognese" },
+    { name: "Chicken Caesar salad", emoji: "🥗", meal: "Lunch", query: "caesar" },
+  ],
+  International: [
+    { name: "Chicken shawarma", emoji: "🌯", meal: "Dinner", query: "shawarma" },
+    { name: "Pepperoni pizza", emoji: "🍕", meal: "Dinner", query: "pizza" },
+    { name: "Chicken curry", emoji: "🍛", meal: "Lunch", query: "curry" },
+    { name: "Greek yoghurt & berries", emoji: "🫐", meal: "Breakfast", query: "yoghurt" },
+  ],
+};
 
 export function Home() {
   const navigate = useNavigate();
   const { profile, diary, water, latestWeightKg, addWater } = useStore();
   const [filter, setFilter] = useState<Meal | "All">("All");
   const [query, setQuery] = useState("");
+  const [cuisine, setCuisine] = useState<Cuisine>("Nigerian");
   if (!profile || latestWeightKg === null) return null;
 
   const today = todayIso();
@@ -165,9 +180,16 @@ export function Home() {
             </Card>
           )}
 
-          <div className="section-title"><h2>Popular Naija meals</h2></div>
+          <div className="section-title"><h2>Popular dishes</h2></div>
+          <div className="seg seg-pill" role="tablist" aria-label="Cuisine" style={{ marginBottom: "0.75rem" }}>
+            {CUISINES.map((c) => (
+              <button key={c.id} role="tab" aria-selected={cuisine === c.id} className={cuisine === c.id ? "on" : ""} onClick={() => setCuisine(c.id)}>
+                {c.emoji} {c.label}
+              </button>
+            ))}
+          </div>
           <ul className="food-rows">
-            {POPULAR.map((p) => (
+            {POPULAR[cuisine].map((p) => (
               <li key={p.name} className="food-row">
                 <Thumb emoji={p.emoji} size="sm" />
                 <div className="food-row-body">

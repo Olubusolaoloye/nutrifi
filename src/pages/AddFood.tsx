@@ -2,7 +2,7 @@ import { ArrowLeft, Minus, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, MacroTiles, MealTag, NutrientChips, PageHeader, SearchBox, Thumb } from "../components/ui";
-import { FOOD_CATEGORIES, nutrientsFor, searchFoods, type Food, type FoodCategory } from "../data/foods";
+import { CATEGORIES_BY_CUISINE, CUISINES, nutrientsFor, searchFoods, type Cuisine, type Food } from "../data/foods";
 import { fmt } from "../state/derived";
 import { MEALS, todayIso, useStore, type Meal } from "../state/store";
 
@@ -21,13 +21,27 @@ export function AddFood() {
   const initialMeal = MEALS.includes(params.get("meal") as Meal) ? (params.get("meal") as Meal) : "Lunch";
   const [meal, setMeal] = useState<Meal>(initialMeal);
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [category, setCategory] = useState<FoodCategory | "All">("All");
+  const initialCuisine = CUISINES.some((c) => c.id === params.get("cuisine")) ? (params.get("cuisine") as Cuisine) : "Nigerian";
+  const [cuisine, setCuisine] = useState<Cuisine>(initialCuisine);
+  const [category, setCategory] = useState<string>("All");
   const [selected, setSelected] = useState<Food | null>(null);
   const [tray, setTray] = useState<Pending[]>([]);
-  const results = useMemo(
-    () => searchFoods(query).filter((f) => category === "All" || f.category === category),
-    [query, category],
-  );
+  const searching = query.trim().length > 0;
+
+  // Searching looks across every cuisine, grouped by cuisine. Browsing shows one cuisine, grouped by category.
+  const sections = useMemo(() => {
+    const found = searchFoods(query);
+    if (searching) {
+      return CUISINES.map((c) => ({
+        title: `${c.emoji} ${c.label}`,
+        foods: found.filter((f) => f.cuisine === c.id),
+      })).filter((s) => s.foods.length > 0);
+    }
+    return CATEGORIES_BY_CUISINE[cuisine]
+      .filter((cat) => category === "All" || cat === category)
+      .map((cat) => ({ title: cat, foods: found.filter((f) => f.cuisine === cuisine && f.category === cat) }))
+      .filter((s) => s.foods.length > 0);
+  }, [query, searching, cuisine, category]);
 
   const save = () => {
     addDiaryEntries(tray.map((p) => ({ date: todayIso(), meal, foodId: p.food.id, grams: p.grams, portionLabel: p.portionLabel })));
@@ -81,35 +95,66 @@ export function AddFood() {
             />
           ) : (
             <>
-              <SearchBox value={query} onChange={setQuery} placeholder="Search e.g. eba, jollof, beans…" autoFocus />
-              <div className="chip-group" role="group" aria-label="Category" style={{ margin: "0.75rem 0 1rem" }}>
-                {(["All", ...FOOD_CATEGORIES] as const).map((c) => (
-                  <button key={c} className={`chip${category === c ? " on" : ""}`} onClick={() => setCategory(c)}>{c}</button>
-                ))}
-              </div>
-              <ul className="food-rows">
-                {results.map((f) => {
-                  const portion = defaultPortion(f);
-                  return (
-                    <li key={f.id}>
-                      <button className="food-row" onClick={() => setSelected(f)}>
-                        <Thumb emoji={f.emoji} />
-                        <div className="food-row-body">
-                          <div className="food-row-top">
-                            <span className="tag tag-outline">{f.category}</span>
-                            <span className="muted small">{f.aliases.join(", ")}</span>
-                          </div>
-                          <strong>{f.name}</strong>
-                          <NutrientChips m={nutrientsFor(f, portion.grams)} />
-                          <span className="muted small">per {portion.label.toLowerCase()} ({portion.grams} g)</span>
-                        </div>
-                        <span className="icon-btn sm lime" aria-hidden><Plus size={16} /></span>
+              <SearchBox value={query} onChange={setQuery} placeholder="Search any dish: eba, pizza, shawarma…" autoFocus />
+              {!searching && (
+                <>
+                  <div className="cuisine-tabs" role="tablist" aria-label="Cuisine">
+                    {CUISINES.map((c) => (
+                      <button
+                        key={c.id}
+                        role="tab"
+                        aria-selected={cuisine === c.id}
+                        className={`cuisine-tab${cuisine === c.id ? " on" : ""}`}
+                        onClick={() => {
+                          setCuisine(c.id);
+                          setCategory("All");
+                        }}
+                      >
+                        <span className="cuisine-emoji" aria-hidden>{c.emoji}</span>
+                        <span>
+                          <strong>{c.label}</strong>
+                          <small>{c.blurb}</small>
+                        </span>
                       </button>
-                    </li>
-                  );
-                })}
-                {results.length === 0 && <li className="empty-meal muted">No match. Food requests are coming soon.</li>}
-              </ul>
+                    ))}
+                  </div>
+                  <div className="chip-group chip-scroll" role="group" aria-label="Section">
+                    {["All", ...CATEGORIES_BY_CUISINE[cuisine]].map((c) => (
+                      <button key={c} className={`chip${category === c ? " on" : ""}`} onClick={() => setCategory(c)}>{c}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {sections.map((sec) => (
+                <section key={sec.title} className="food-section">
+                  <div className="section-title">
+                    <h2>{sec.title}</h2>
+                    <span className="muted small">{sec.foods.length} dish{sec.foods.length === 1 ? "" : "es"}</span>
+                  </div>
+                  <ul className="food-rows">
+                    {sec.foods.map((f) => {
+                      const portion = defaultPortion(f);
+                      return (
+                        <li key={f.id}>
+                          <button className="food-row" onClick={() => setSelected(f)}>
+                            <Thumb emoji={f.emoji} />
+                            <div className="food-row-body">
+                              <div className="food-row-top">
+                                <span className="tag tag-outline">{searching ? f.category : f.aliases[0]}</span>
+                              </div>
+                              <strong>{f.name}</strong>
+                              <NutrientChips m={nutrientsFor(f, portion.grams)} />
+                              <span className="muted small">per {portion.label.toLowerCase()} ({portion.grams} g)</span>
+                            </div>
+                            <span className="icon-btn sm lime" aria-hidden><Plus size={16} /></span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+              {sections.length === 0 && <div className="empty-meal muted">No match for “{query}”. Food requests are coming soon.</div>}
             </>
           )}
         </div>
@@ -138,7 +183,7 @@ function PortionPicker({ food, onAdd, onCancel }: { food: Food; onAdd: (p: Pendi
         <Thumb emoji={food.emoji} size="lg" label={food.name} />
       </div>
       <div>
-        <div className="food-row-top"><span className="tag tag-outline">{food.category}</span><span className="badge">{food.source}</span></div>
+        <div className="food-row-top"><span className="tag tag-outline">{food.cuisine} · {food.category}</span><span className="badge">{food.source}</span></div>
         <h1 style={{ margin: "0.5rem 0 0.25rem" }}>{food.name}</h1>
         <p className="muted small">Also called: {food.aliases.join(", ")}</p>
 

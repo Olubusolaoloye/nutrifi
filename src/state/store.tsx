@@ -28,6 +28,39 @@ export interface DiaryEntry {
   portionLabel: string;
 }
 
+/** A note slot: one per meal, plus a whole-day reflection. */
+export type NoteSlot = Meal | "Day";
+
+export const FEELINGS = [
+  { value: 1, emoji: "😣", label: "Awful" },
+  { value: 2, emoji: "😕", label: "Not great" },
+  { value: 3, emoji: "😐", label: "Okay" },
+  { value: 4, emoji: "🙂", label: "Good" },
+  { value: 5, emoji: "😄", label: "Great" },
+] as const;
+
+export const NOTE_TAGS = [
+  "Satisfied",
+  "Still hungry",
+  "Too full",
+  "Energised",
+  "Sleepy",
+  "Bloated",
+  "Heartburn",
+  "Cravings",
+  "Ate out",
+  "Ate late",
+] as const;
+
+export interface DiaryNote {
+  feeling?: number; // 1–5, see FEELINGS
+  tags: string[];
+  text: string;
+  updatedAt: string; // ISO timestamp
+}
+
+export const noteKey = (date: string, slot: NoteSlot) => `${date}|${slot}`;
+
 export interface WeightEntry {
   date: string;
   weightKg: number;
@@ -38,10 +71,11 @@ interface PersistedState {
   diary: DiaryEntry[];
   water: Record<string, number>; // date → ml
   weights: WeightEntry[];
+  notes: Record<string, DiaryNote>; // noteKey(date, slot) → note
 }
 
 const STORAGE_KEY = "nutrifi:v1";
-const EMPTY: PersistedState = { profile: null, diary: [], water: {}, weights: [] };
+const EMPTY: PersistedState = { profile: null, diary: [], water: {}, weights: [], notes: {} };
 
 function load(): PersistedState {
   try {
@@ -70,6 +104,8 @@ interface Store extends PersistedState {
   removeDiaryEntry: (id: string) => void;
   addWater: (date: string, ml: number) => void;
   logWeight: (date: string, weightKg: number) => void;
+  /** Saves a note, or deletes it when `note` is null. */
+  setNote: (date: string, slot: NoteSlot, note: Omit<DiaryNote, "updatedAt"> | null) => void;
   resetAll: () => void;
 }
 
@@ -112,6 +148,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addWater: (date, ml) =>
         setState((s) => ({ ...s, water: { ...s.water, [date]: Math.max(0, (s.water[date] ?? 0) + ml) } })),
       logWeight,
+      setNote: (date, slot, note) =>
+        setState((s) => {
+          const notes = { ...s.notes };
+          const key = noteKey(date, slot);
+          if (note) notes[key] = { ...note, updatedAt: new Date().toISOString() };
+          else delete notes[key];
+          return { ...s, notes };
+        }),
       resetAll: () => setState(EMPTY),
     };
   }, [state, logWeight]);

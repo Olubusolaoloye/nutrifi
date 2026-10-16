@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { NoteCard } from "../components/NoteCard";
 import { MacroTiles, MealTag, NutrientChips, PageHeader, Thumb } from "../components/ui";
 import { foodById, nutrientsFor } from "../data/foods";
 import { dailyTotals, fmt } from "../state/derived";
@@ -62,9 +63,15 @@ export function Diary() {
                 })}
               </ul>
             )}
+            <NoteCard key={`${date}-${meal}`} date={date} slot={meal} />
           </section>
         );
       })}
+
+      <section>
+        <div className="section-title"><h2>Day reflection</h2></div>
+        <NoteCard key={`${date}-day`} date={date} slot="Day" />
+      </section>
     </div>
   );
 }
