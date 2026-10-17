@@ -1,4 +1,5 @@
 import {
+  Bell,
   BookOpen,
   Calculator,
   CalendarDays,
@@ -19,6 +20,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { canUseWorkbench, useStore } from "../state/store";
+import { useLocalReminders } from "../state/useLocalReminders";
 
 function useOnline() {
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -66,6 +68,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   { to: "/diary", label: "Food diary", icon: NotebookPen },
   { to: "/progress", label: "Progress", icon: TrendingUp },
   { to: "/exercises", label: "Exercises", icon: Dumbbell },
+  { to: "/reminders", label: "Reminders", icon: Bell },
   { to: "/learn", label: "Health insights", icon: BookOpen },
 ];
 
@@ -80,6 +83,7 @@ const MOBILE_TABS: NavEntry[] = [
 export function Layout() {
   const { profile, account } = useStore();
   const online = useOnline();
+  useLocalReminders();
   const pro = canUseWorkbench(profile);
   const cls = (extra = "") => ({ isActive }: { isActive: boolean }) => `nav-item ${extra}${isActive ? " active" : ""}`;
 

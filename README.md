@@ -26,7 +26,10 @@ npm run build      # production build in dist/
 | Food diary: day view with meal notes and day reflection, week table with "Thoughts", weekly stat cards | `src/pages/Diary.tsx`, `src/components/NoteCard.tsx` |
 | Add food: Naija, Continental and International sections | `src/pages/AddFood.tsx`, `src/data/foods.ts` |
 | Healthy menu and recipe pages (servings scaling, ingredients, directions) | `src/pages/Recipes.tsx`, `src/data/recipes.ts` |
-| Weekly meal plan with sample-week generator | `src/pages/MealPlan.tsx` |
+| Personal meal plans: a week sized to your daily target (portions in ¼ servings), using your cuisines, diet, allergies and ₦ budget | `src/pages/MealPlan.tsx`, `src/lib/planner.ts` |
+| Swap options: dishes with about the same calories for the same kind of meal, labelled "Cheaper" / "More protein" | `src/lib/planner.ts` |
+| Reminders for meals (with the planned dish), water, weekly weigh-in and planning, and calendar events — by push notification and WhatsApp | `src/pages/Reminders.tsx`, `src/lib/reminders.ts`, `convex/reminders.ts`, `convex/notify.ts` |
+| Sign in / create account / forgot password (cloud mode) | `src/pages/Auth.tsx` |
 | Grocery list built from the plan, with ₦ estimates and purchased status | `src/pages/Grocery.tsx` |
 | Calendar of planned meals, activities and appointments | `src/pages/Calendar.tsx` |
 | Exercise log with calories from MET values | `src/pages/Exercises.tsx`, `src/lib/nutrition/activity.ts` |
@@ -43,6 +46,8 @@ verification is simulated with a "Demo: approve my verification" button on the M
 
 ## Prototype limits
 
+- People with a medical condition, and under-18s, get a general week with standard portions instead of a personal plan; a dietitian should set theirs.
+- Push and WhatsApp reminders need provider keys (see `BACKEND.md`). Without an account, reminders only show while the app is open.
 - Messaging is a preview with sample conversations; it launches with paid interventions.
 - Food photos come from Wikimedia Commons (public domain / Creative Commons) and are credited on the Photo credits page (`/credits`); a dish falls back to its emoji if its photo can't load.
 - Food values, recipes, ₦ grocery prices and articles are **sample placeholders, not for clinical use**. They'll be replaced with the West African / Nigerian food composition tables and articles reviewed by dietitians.

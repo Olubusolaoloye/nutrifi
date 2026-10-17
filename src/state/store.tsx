@@ -1,6 +1,8 @@
 // App state for the MVP prototype. Kept in the browser (localStorage) until the backend exists.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ActivityLevel, Condition, Goal, Sex } from "../lib/nutrition";
+import { DEFAULT_PLAN_PREFS, type PlanPrefs } from "../lib/planner";
+import { DEFAULT_REMINDERS, type ReminderSettings } from "../lib/reminders";
 
 export type Role = "consumer" | "student" | "dietitian";
 export type Verification = "none" | "pending" | "verified" | "rejected";
@@ -71,6 +73,10 @@ export interface WeightEntry {
 /** Meal plan: date → meal → recipe id. */
 export type MealPlan = Record<string, Partial<Record<Meal, string>>>;
 
+/** Servings for a planned slot, keyed by noteKey(date, meal). Missing means 1. */
+export type PlanPortions = Record<string, number>;
+export const portionOf = (portions: PlanPortions, date: string, meal: Meal) => portions[noteKey(date, meal)] ?? 1;
+
 export interface GroceryState {
   people: number;
   /** Ingredient key → purchased. */
@@ -115,6 +121,9 @@ export interface PersistedState {
   weights: WeightEntry[];
   notes: Record<string, DiaryNote>; // noteKey(date, slot) → note
   plan: MealPlan;
+  planPortions: PlanPortions;
+  planPrefs: PlanPrefs;
+  reminders: ReminderSettings;
   grocery: GroceryState;
   events: CalendarEvent[];
   exercises: ExerciseEntry[];
@@ -128,6 +137,9 @@ export const EMPTY: PersistedState = {
   weights: [],
   notes: {},
   plan: {},
+  planPortions: {},
+  planPrefs: DEFAULT_PLAN_PREFS,
+  reminders: DEFAULT_REMINDERS,
   grocery: { people: 1, purchased: {}, qtyOverride: {} },
   events: [],
   exercises: [],
@@ -136,7 +148,14 @@ export const EMPTY: PersistedState = {
 export function loadLocal(): PersistedState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY;
+    if (!raw) return EMPTY;
+    const saved = JSON.parse(raw) as Partial<PersistedState>;
+    return {
+      ...EMPTY,
+      ...saved,
+      planPrefs: { ...DEFAULT_PLAN_PREFS, ...saved.planPrefs },
+      reminders: { ...DEFAULT_REMINDERS, ...saved.reminders, meals: { ...DEFAULT_REMINDERS.meals, ...saved.reminders?.meals } },
+    };
   } catch {
     return EMPTY;
   }
@@ -190,9 +209,11 @@ export interface Store extends PersistedState {
   logWeight: (date: string, weightKg: number) => void;
   /** Saves a note, or deletes it when `note` is null. */
   setNote: (date: string, slot: NoteSlot, note: Omit<DiaryNote, "updatedAt"> | null) => void;
-  /** Sets or clears (recipeId null) one meal slot in the plan. */
-  setPlanSlot: (date: string, meal: Meal, recipeId: string | null) => void;
-  replacePlan: (items: Array<{ date: string; meal: Meal; recipeId: string }>) => void;
+  /** Sets or clears (recipeId null) one meal slot in the plan. Portion is servings (default 1). */
+  setPlanSlot: (date: string, meal: Meal, recipeId: string | null, portion?: number) => void;
+  replacePlan: (items: Array<{ date: string; meal: Meal; recipeId: string; portion?: number }>) => void;
+  updatePlanPrefs: (prefs: PlanPrefs) => void;
+  updateReminders: (settings: ReminderSettings) => void;
   updateGrocery: (patch: Partial<GroceryState>) => void;
   addEvent: (e: Omit<CalendarEvent, "id">) => void;
   removeEvent: (id: string) => void;
@@ -255,19 +276,30 @@ export function LocalStoreProvider({ children }: { children: ReactNode }) {
           else delete notes[key];
           return { ...s, notes };
         }),
-      setPlanSlot: (date, meal, recipeId) =>
+      setPlanSlot: (date, meal, recipeId, portion) =>
         setState((s) => {
           const day = { ...(s.plan[date] ?? {}) };
-          if (recipeId) day[meal] = recipeId;
-          else delete day[meal];
-          return { ...s, plan: { ...s.plan, [date]: day } };
+          const planPortions = { ...s.planPortions };
+          delete planPortions[noteKey(date, meal)];
+          if (recipeId) {
+            day[meal] = recipeId;
+            if (portion && portion !== 1) planPortions[noteKey(date, meal)] = portion;
+          } else delete day[meal];
+          return { ...s, plan: { ...s.plan, [date]: day }, planPortions };
         }),
       replacePlan: (items) =>
         setState((s) => {
           const plan: MealPlan = { ...s.plan };
-          for (const it of items) plan[it.date] = { ...(plan[it.date] ?? {}), [it.meal]: it.recipeId };
-          return { ...s, plan };
+          const planPortions = { ...s.planPortions };
+          for (const it of items) {
+            plan[it.date] = { ...(plan[it.date] ?? {}), [it.meal]: it.recipeId };
+            if (it.portion && it.portion !== 1) planPortions[noteKey(it.date, it.meal)] = it.portion;
+            else delete planPortions[noteKey(it.date, it.meal)];
+          }
+          return { ...s, plan, planPortions };
         }),
+      updatePlanPrefs: (planPrefs) => setState((s) => ({ ...s, planPrefs })),
+      updateReminders: (reminders) => setState((s) => ({ ...s, reminders })),
       updateGrocery: (patch) => setState((s) => ({ ...s, grocery: { ...s.grocery, ...patch } })),
       addEvent: (e) => setState((s) => ({ ...s, events: [...s.events, { ...e, id: crypto.randomUUID() }] })),
       removeEvent: (id) => setState((s) => ({ ...s, events: s.events.filter((e) => e.id !== id) })),

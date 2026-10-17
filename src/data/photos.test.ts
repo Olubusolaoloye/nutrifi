@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { ARTICLES } from "./articles";
 import { FOODS } from "./foods";
-import { PHOTOS, photoFor, photoUrl } from "./photos";
+import { EMOJI_ONLY, PHOTOS, photoFor, photoUrl } from "./photos";
 import { RECIPES } from "./recipes";
 
 describe("photos", () => {
-  it("cover every food, recipe and article", () => {
+  it("cover every food, recipe and article (except the listed emoji-only ones)", () => {
     const missing = [
       ...FOODS.map((f) => f.id),
       ...RECIPES.map((r) => `recipe:${r.id}`),
       ...ARTICLES.map((a) => `article:${a.id}`),
-    ].filter((k) => !photoFor(k));
+    ].filter((k) => !photoFor(k) && !EMOJI_ONLY.has(k));
     expect(missing).toEqual([]);
   });
 

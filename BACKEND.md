@@ -9,8 +9,13 @@ Nutrifi runs in two modes:
 
 | File | What it does |
 |---|---|
-| `schema.ts` | Tables: profiles, verifications, diary, water, weights, notes, plan, grocery, events, exercises, waitlist (+ Convex Auth tables) |
+| `schema.ts` | Tables: profiles, verifications, diary, water, weights, notes, plan (with portions), grocery, events, exercises, settings, pushSubscriptions, whatsapp, reminderLog, waitlist (+ Convex Auth tables) |
 | `auth.ts`, `auth.config.ts`, `http.ts` | Convex Auth with the Password provider (email + password) |
+| `passwordReset.ts` | "Forgot password?": emails an 8-digit reset code through Resend |
+| `settings.ts` | Saves meal-plan preferences and reminder settings |
+| `reminders.ts` | Push subscriptions, WhatsApp number confirmation (6-digit code), test reminders, and `claimDue`, which works out what's due and records it so nothing is sent twice |
+| `notify.ts` | Sends reminders (Node runtime): web push with VAPID keys, WhatsApp Cloud API template messages |
+| `crons.ts` | Checks for due reminders every 5 minutes |
 | `me.ts` | `snapshot` — one reactive query with everything the signed-in user needs |
 | `profile.ts` | Create the profile at the end of onboarding; edit personal details (role and verification can't be changed by users) |
 | `data.ts` | Diary, water, weight, notes, plan, grocery, calendar and exercise mutations; delete my data / account |
@@ -57,8 +62,47 @@ Create an account with the email you put in `ADMIN_EMAILS`, and the **Verificati
 3. In Netlify → **nutrifi-ng** → **Project configuration → Environment variables**, add `CONVEX_DEPLOY_KEY` with that key.
 4. Redeploy. The build (`npm run build:ci`) deploys the Convex functions, sets `VITE_CONVEX_URL` automatically, and builds the app in cloud mode.
 
+## Password reset emails (Resend)
+
+1. Create a free account at https://resend.com, verify your sending domain (e.g. `nutrifi.ng`) and create an API key.
+2. `npx convex env set AUTH_RESEND_KEY re_xxx` and `npx convex env set AUTH_EMAIL_FROM "Nutrifi <no-reply@nutrifi.ng>"` (add `--prod` for production).
+
+Without these, "Forgot password?" tells people reset isn't available yet.
+
+## Reminders: push notifications
+
+1. Generate VAPID keys once: `npx web-push generate-vapid-keys`
+2. Save them in Convex (add `--prod` for production):
+   ```bash
+   npx convex env set VAPID_PUBLIC_KEY  "<public key>"
+   npx convex env set VAPID_PRIVATE_KEY "<private key>"
+   npx convex env set VAPID_SUBJECT     "mailto:hello@nutrifi.ng"
+   ```
+3. Members turn notifications on per device under **Reminders**. On iPhone, push only works once Nutrifi is added to the Home Screen (iOS 16.4+).
+
+Never change the VAPID keys once people have subscribed — existing devices would stop receiving reminders until they turn notifications on again.
+
+## Reminders: WhatsApp (Meta WhatsApp Cloud API)
+
+1. In https://developers.facebook.com create an app → add **WhatsApp**, connect a business phone number and create a **permanent access token** (System User in Business Settings, with `whatsapp_business_messaging`).
+2. Create a message template in WhatsApp Manager, category **Utility**, language English, named `nutrifi_reminder`, with this body:
+   > Hi {{1}}, a reminder from Nutrifi: {{2}}
+
+   Wait for Meta to approve it. (Optional: an **Authentication** template for the confirmation code — set its name in `WHATSAPP_CODE_TEMPLATE`; otherwise the code is sent with the reminder template.)
+3. Save the settings in Convex:
+   ```bash
+   npx convex env set WHATSAPP_TOKEN "<permanent token>"
+   npx convex env set WHATSAPP_PHONE_NUMBER_ID "<phone number id>"
+   npx convex env set WHATSAPP_TEMPLATE nutrifi_reminder        # optional, this is the default
+   npx convex env set WHATSAPP_TEMPLATE_LANG en                 # optional, must match the template's language code
+   ```
+
+Members add their number under **Reminders**, tick the consent box and confirm it with the 6-digit code sent to WhatsApp. Reminders only go to confirmed numbers; up to 3 codes an hour and 5 tries per code. Meta charges per conversation — check current WhatsApp pricing for Nigeria.
+
 ## Notes
 
+- The reminder cron reads every member's settings each run, which is fine for the MVP; shard or index by next-due time as the user base grows.
+- Without an account (on-device mode), reminders show as browser notifications only while Nutrifi is open.
 - Sign-in is email + password for now. Phone OTP can be added with an SMS provider (e.g. Termii) as a custom Convex Auth provider.
 - Verification documents are stored in Convex file storage and visible only to admins.
 - `convex/_generated/` was written by hand to match Convex's output (this environment couldn't reach Convex); `npx convex dev` regenerates it.

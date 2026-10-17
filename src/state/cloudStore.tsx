@@ -3,6 +3,8 @@ import { useMutation, useQuery } from "convex/react";
 import type { OptimisticLocalStore } from "convex/browser";
 import type { FunctionReturnType } from "convex/server";
 import { useMemo, type ReactNode } from "react";
+import { DEFAULT_PLAN_PREFS } from "../lib/planner";
+import { DEFAULT_REMINDERS } from "../lib/reminders";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
@@ -17,6 +19,7 @@ import {
   type ExerciseEntry,
   type MealPlan,
   type PersistedState,
+  type PlanPortions,
   type Profile,
   type Store,
 } from "./store";
@@ -41,7 +44,11 @@ function toState(s: Snapshot): PersistedState {
   const notes: Record<string, DiaryNote> = {};
   for (const n of s.notes) notes[noteKey(n.date, n.slot)] = { feeling: n.feeling, tags: n.tags, text: n.text, updatedAt: n.updatedAt };
   const plan: MealPlan = {};
-  for (const r of s.plan) plan[r.date] = { ...(plan[r.date] ?? {}), [r.meal]: r.recipeId };
+  const planPortions: PlanPortions = {};
+  for (const r of s.plan) {
+    plan[r.date] = { ...(plan[r.date] ?? {}), [r.meal]: r.recipeId };
+    if (r.portion && r.portion !== 1) planPortions[noteKey(r.date, r.meal)] = r.portion;
+  }
   return {
     profile,
     diary: s.diary.map(
@@ -51,6 +58,9 @@ function toState(s: Snapshot): PersistedState {
     weights: [...s.weights].sort((a, b) => a.date.localeCompare(b.date)).map((w) => ({ date: w.date, weightKg: w.weightKg })),
     notes,
     plan,
+    planPortions,
+    planPrefs: s.planPrefs ?? DEFAULT_PLAN_PREFS,
+    reminders: s.reminders ? { ...DEFAULT_REMINDERS, ...s.reminders } : DEFAULT_REMINDERS,
     grocery: s.grocery ? { people: s.grocery.people, purchased: s.grocery.purchased, qtyOverride: s.grocery.qtyOverride } : EMPTY.grocery,
     events: s.events.map((e): CalendarEvent => ({ id: e._id, date: e.date, time: e.time, type: e.type, title: e.title, location: e.location, note: e.note })),
     exercises: s.exercises.map(
@@ -108,14 +118,27 @@ export function ConvexStoreProvider({ children }: { children: ReactNode }) {
       };
     }),
   );
-  const setPlanSlot = useMutation(api.data.setPlanSlot).withOptimisticUpdate((store, { date, meal, recipeId }) =>
+  const setPlanSlot = useMutation(api.data.setPlanSlot).withOptimisticUpdate((store, { date, meal, recipeId, portion }) =>
     patchSnapshot(store, (s) => {
       const others = s.plan.filter((p) => !(p.date === date && p.meal === meal));
       if (!recipeId) return { ...s, plan: others };
-      return { ...s, plan: [...others, { _id: `temp_${date}_${meal}` as Id<"plan">, _creationTime: Date.now(), userId: s.profile!.userId, date, meal, recipeId }] };
+      return { ...s, plan: [...others, { _id: `temp_${date}_${meal}` as Id<"plan">, _creationTime: Date.now(), userId: s.profile!.userId, date, meal, recipeId, portion }] };
     }),
   );
-  const replacePlan = useMutation(api.data.replacePlan);
+  const replacePlan = useMutation(api.data.replacePlan).withOptimisticUpdate((store, { items }) =>
+    patchSnapshot(store, (s) => {
+      const keys = new Set(items.map((it) => `${it.date}|${it.meal}`));
+      const kept = s.plan.filter((p) => !keys.has(`${p.date}|${p.meal}`));
+      const added = items.map((it) => ({ _id: `temp_${it.date}_${it.meal}` as Id<"plan">, _creationTime: Date.now(), userId: s.profile!.userId, ...it }));
+      return { ...s, plan: [...kept, ...added] };
+    }),
+  );
+  const updatePlanPrefs = useMutation(api.settings.updatePlanPrefs).withOptimisticUpdate((store, { prefs }) =>
+    patchSnapshot(store, (s) => ({ ...s, planPrefs: prefs })),
+  );
+  const updateReminders = useMutation(api.settings.updateReminders).withOptimisticUpdate((store, { reminders }) =>
+    patchSnapshot(store, (s) => ({ ...s, reminders })),
+  );
   const updateGrocery = useMutation(api.data.updateGrocery).withOptimisticUpdate((store, patch) =>
     patchSnapshot(store, (s) => {
       const base = s.grocery ?? { _id: "temp_grocery" as Id<"grocery">, _creationTime: Date.now(), userId: s.profile!.userId, ...EMPTY.grocery };
@@ -157,8 +180,11 @@ export function ConvexStoreProvider({ children }: { children: ReactNode }) {
       addWater: (date, ml) => fire(addWater({ date, ml })),
       logWeight: (date, weightKg) => fire(logWeight({ date, weightKg })),
       setNote: (date, slot, note) => fire(setNote({ date, slot, note: note && { feeling: note.feeling, tags: note.tags, text: note.text } })),
-      setPlanSlot: (date, meal, recipeId) => fire(setPlanSlot({ date, meal, recipeId })),
-      replacePlan: (items) => fire(replacePlan({ items })),
+      setPlanSlot: (date, meal, recipeId, portion) => fire(setPlanSlot({ date, meal, recipeId, portion: recipeId && portion !== 1 ? portion : undefined })),
+      replacePlan: (items) =>
+        fire(replacePlan({ items: items.map(({ date, meal, recipeId, portion }) => ({ date, meal, recipeId, portion: portion !== 1 ? portion : undefined })) })),
+      updatePlanPrefs: (prefs) => fire(updatePlanPrefs({ prefs })),
+      updateReminders: (reminders) => fire(updateReminders({ reminders })),
       updateGrocery: (patch) => fire(updateGrocery(patch)),
       addEvent: ({ date, time, type, title, location, note }) => fire(addEvent({ date, time, type, title, location, note })),
       removeEvent: (id) => fire(removeEvent({ id: id as Id<"events"> })),
@@ -169,7 +195,7 @@ export function ConvexStoreProvider({ children }: { children: ReactNode }) {
         await deleteMyData({ deleteAccount: opts?.deleteAccount });
       },
     };
-  }, [snapshot, createProfile, updateProfile, addDiaryEntries, removeDiaryEntry, addWater, logWeight, setNote, setPlanSlot, replacePlan, updateGrocery, addEvent, removeEvent, addExercise, updateExercise, removeExercise, deleteMyData]);
+  }, [snapshot, createProfile, updateProfile, addDiaryEntries, removeDiaryEntry, addWater, logWeight, setNote, setPlanSlot, replacePlan, updatePlanPrefs, updateReminders, updateGrocery, addEvent, removeEvent, addExercise, updateExercise, removeExercise, deleteMyData]);
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 }
@@ -195,7 +221,10 @@ export function localDataForImport() {
         return { date, slot, feeling: n.feeling, tags: n.tags, text: n.text, updatedAt: n.updatedAt };
       }),
       plan: Object.entries(s.plan).flatMap(([date, meals]) =>
-        Object.entries(meals).filter(([, id]) => !!id).map(([meal, recipeId]) => ({ date, meal: meal as "Breakfast" | "Lunch" | "Dinner" | "Snacks", recipeId: recipeId! })),
+        Object.entries(meals).filter(([, id]) => !!id).map(([meal, recipeId]) => {
+          const portion = s.planPortions[noteKey(date, meal as "Breakfast" | "Lunch" | "Dinner" | "Snacks")];
+          return { date, meal: meal as "Breakfast" | "Lunch" | "Dinner" | "Snacks", recipeId: recipeId!, ...(portion ? { portion } : {}) };
+        }),
       ),
       events: s.events.map(({ date, time, type, title, location, note }) => ({ date, time, type, title, location, note })),
       exercises: s.exercises.map(({ date, activityId, minutes, sets, reps, status }) => ({ date, activityId, minutes, sets, reps, status })),

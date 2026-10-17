@@ -79,34 +79,40 @@ export const setNote = mutation({
   },
 });
 
+const checkPortion = (portion: number | undefined) => {
+  if (portion !== undefined) checkRange(portion, 0.25, 4, "Portion");
+};
+
 export const setPlanSlot = mutation({
-  args: { date: isoDate, meal, recipeId: v.union(v.string(), v.null()) },
-  handler: async (ctx, { date, meal, recipeId }) => {
+  args: { date: isoDate, meal, recipeId: v.union(v.string(), v.null()), portion: v.optional(v.number()) },
+  handler: async (ctx, { date, meal, recipeId, portion }) => {
     const userId = await requireUser(ctx);
     checkDate(date);
+    checkPortion(portion);
     const row = await ctx.db
       .query("plan")
       .withIndex("by_user_date_meal", (q) => q.eq("userId", userId).eq("date", date).eq("meal", meal))
       .unique();
     if (!recipeId) {
       if (row) await ctx.db.delete(row._id);
-    } else if (row) await ctx.db.patch(row._id, { recipeId });
-    else await ctx.db.insert("plan", { userId, date, meal, recipeId });
+    } else if (row) await ctx.db.patch(row._id, { recipeId, portion });
+    else await ctx.db.insert("plan", { userId, date, meal, recipeId, portion });
   },
 });
 
 export const replacePlan = mutation({
-  args: { items: v.array(v.object({ date: isoDate, meal, recipeId: v.string() })) },
+  args: { items: v.array(v.object({ date: isoDate, meal, recipeId: v.string(), portion: v.optional(v.number()) })) },
   handler: async (ctx, { items }) => {
     const userId = await requireUser(ctx);
     if (items.length > 60) throw new ConvexError("Too many plan items.");
     for (const it of items) {
       checkDate(it.date);
+      checkPortion(it.portion);
       const row = await ctx.db
         .query("plan")
         .withIndex("by_user_date_meal", (q) => q.eq("userId", userId).eq("date", it.date).eq("meal", it.meal))
         .unique();
-      if (row) await ctx.db.patch(row._id, { recipeId: it.recipeId });
+      if (row) await ctx.db.patch(row._id, { recipeId: it.recipeId, portion: it.portion });
       else await ctx.db.insert("plan", { userId, ...it });
     }
   },
@@ -200,7 +206,10 @@ export const deleteMyData = mutation({
     }
     for (const r of await ctx.db.query("notes").withIndex("by_user_date_slot", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(r._id);
     for (const r of await ctx.db.query("plan").withIndex("by_user_date_meal", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(r._id);
-    for (const r of await ctx.db.query("grocery").withIndex("by_user", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(r._id);
+    for (const table of ["grocery", "settings", "pushSubscriptions", "whatsapp"] as const) {
+      for (const r of await ctx.db.query(table).withIndex("by_user", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(r._id);
+    }
+    for (const r of await ctx.db.query("reminderLog").withIndex("by_user_key", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(r._id);
     for (const r of await ctx.db.query("verifications").withIndex("by_user", (q) => q.eq("userId", userId)).collect()) {
       if (r.documentId) await ctx.storage.delete(r.documentId);
       await ctx.db.delete(r._id);

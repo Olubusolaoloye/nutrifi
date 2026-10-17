@@ -62,3 +62,29 @@ export const exerciseFields = {
   reps: v.optional(v.number()),
   status: exerciseStatus,
 };
+
+const cuisine = v.union(v.literal("Nigerian"), v.literal("Continental"), v.literal("International"));
+const allergen = v.union(v.literal("egg"), v.literal("dairy"), v.literal("peanut"), v.literal("fish"), v.literal("shellfish"), v.literal("gluten"));
+
+/** Mirrors PlanPrefs in src/lib/planner.ts. */
+export const planPrefs = v.object({
+  cuisines: v.array(cuisine),
+  diet: v.union(v.literal("any"), v.literal("pescatarian"), v.literal("vegetarian")),
+  avoid: v.array(allergen),
+  budgetPerDay: v.union(v.number(), v.null()),
+});
+
+const timed = v.object({ on: v.boolean(), time: v.string() });
+const weekly = v.object({ on: v.boolean(), day: v.number(), time: v.string() });
+
+/** Mirrors ReminderSettings in src/lib/reminders.ts. */
+export const reminderSettings = v.object({
+  push: v.boolean(),
+  whatsapp: v.boolean(),
+  meals: v.object({ Breakfast: timed, Lunch: timed, Dinner: timed, Snacks: timed }),
+  water: v.object({ on: v.boolean(), everyHours: v.number(), from: v.string(), to: v.string() }),
+  weighIn: weekly,
+  planning: weekly,
+  appointments: v.object({ on: v.boolean(), minutesBefore: v.number() }),
+  utcOffsetMinutes: v.number(),
+});

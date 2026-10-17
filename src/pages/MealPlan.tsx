@@ -1,39 +1,131 @@
-import { ChevronLeft, ChevronRight, Plus, ShoppingBasket, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Minus, Plus, ShoppingBasket, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader, SampleNotice, Sheet, Thumb } from "../components/ui";
 import { CUISINES, type Cuisine } from "../data/foods";
-import { RECIPES, recipeById, sampleWeekPlan } from "../data/recipes";
+import { ALLERGENS, DIETS, RECIPES, costPerServing, fitsDiet, recipeAllergens, recipeById, type Recipe } from "../data/recipes";
+import { fitPortion, mealTargets, personalWeekPlan, portionLabel, swapOptions, type PlanPrefs } from "../lib/planner";
 import { bodySummary, fmt } from "../state/derived";
-import { shiftDate, todayIso, useStore, weekDates, type Meal } from "../state/store";
+import { portionOf, shiftDate, todayIso, useStore, weekDates, type Meal } from "../state/store";
 
 /** Column order matches the reference: breakfast, lunch, snack, dinner. */
 const PLAN_MEALS: Meal[] = ["Breakfast", "Lunch", "Snacks", "Dinner"];
+const naira = (n: number) => `₦${fmt(Math.round(n / 10) * 10)}`;
+const signed = (n: number) => (Math.round(n) > 0 ? `+${fmt(n)}` : Math.round(n) < 0 ? `−${fmt(-n)}` : "±0");
+/** General plans (no personal target) are sized for a typical adult day, then shown at 1 serving. */
+const GENERAL_KCAL = 2000;
+
+function prefsSummary(p: PlanPrefs): string[] {
+  const out = p.cuisines.map((c) => CUISINES.find((x) => x.id === c)?.label ?? c);
+  if (p.diet !== "any") out.push(DIETS.find((d) => d.id === p.diet)!.label);
+  for (const a of p.avoid) out.push(`No ${ALLERGENS.find((x) => x.id === a)!.label.toLowerCase()}`);
+  if (p.budgetPerDay) out.push(`${naira(p.budgetPerDay)}/day`);
+  return out;
+}
+
+/** Why a recipe doesn't fit the member's preferences, if it doesn't. */
+function conflict(r: Recipe, p: PlanPrefs): string | null {
+  if (!fitsDiet(r, p.diet)) return "Has meat or fish";
+  const a = recipeAllergens(r).find((x) => p.avoid.includes(x));
+  return a ? `Contains ${ALLERGENS.find((x) => x.id === a)!.label.toLowerCase()}` : null;
+}
+
+function PrefsSheet({ prefs, onSave, onClose }: { prefs: PlanPrefs; onSave: (p: PlanPrefs) => void; onClose: () => void }) {
+  const [draft, setDraft] = useState(prefs);
+  const [budget, setBudget] = useState(prefs.budgetPerDay ? String(prefs.budgetPerDay) : "");
+  const budgetNum = budget.trim() ? Number(budget.replace(/[^\d]/g, "")) : null;
+  const budgetOk = budgetNum === null || (budgetNum >= 500 && budgetNum <= 200000);
+  const toggle = <T,>(list: T[], x: T) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
+  return (
+    <Sheet title="Plan preferences" onClose={onClose}>
+      <h3>Cuisines</h3>
+      <div className="chip-row">
+        {CUISINES.map((c) => (
+          <button key={c.id} className={`chip chip-outline${draft.cuisines.includes(c.id) ? " on" : ""}`} aria-pressed={draft.cuisines.includes(c.id)} onClick={() => setDraft({ ...draft, cuisines: toggle<Cuisine>(draft.cuisines, c.id) })}>
+            {c.emoji} {c.label}
+          </button>
+        ))}
+      </div>
+      <h3>I eat</h3>
+      <div className="seg">
+        {DIETS.map((d) => (
+          <button key={d.id} className={draft.diet === d.id ? "on" : ""} onClick={() => setDraft({ ...draft, diet: d.id })}>{d.label}</button>
+        ))}
+      </div>
+      <h3>Leave out (allergies or dislikes)</h3>
+      <div className="chip-row">
+        {ALLERGENS.map((a) => (
+          <button key={a.id} className={`chip chip-outline${draft.avoid.includes(a.id) ? " on" : ""}`} aria-pressed={draft.avoid.includes(a.id)} onClick={() => setDraft({ ...draft, avoid: toggle(draft.avoid, a.id) })}>
+            {a.label}
+          </button>
+        ))}
+      </div>
+      <label className="field">
+        <span>Food budget per person per day (optional)</span>
+        <div className="input-icon">
+          <span aria-hidden className="muted">₦</span>
+          <input inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="e.g. 3000" />
+        </div>
+      </label>
+      {!budgetOk && <p className="small error">Enter an amount between ₦500 and ₦200,000, or leave it empty.</p>}
+      <button
+        className="btn btn-primary btn-block"
+        disabled={draft.cuisines.length === 0 || !budgetOk}
+        onClick={() => {
+          onSave({ ...draft, budgetPerDay: budgetNum });
+          onClose();
+        }}
+      >
+        Save preferences
+      </button>
+      {draft.cuisines.length === 0 && <p className="small muted center">Pick at least one cuisine.</p>}
+    </Sheet>
+  );
+}
 
 export function MealPlan() {
-  const { profile, latestWeightKg, plan, setPlanSlot, replacePlan } = useStore();
+  const { profile, latestWeightKg, plan, planPortions, planPrefs, setPlanSlot, replacePlan, updatePlanPrefs } = useStore();
   const [anchor, setAnchor] = useState(todayIso());
-  const [cuisines, setCuisines] = useState<Cuisine[]>(["Nigerian"]);
   const [editing, setEditing] = useState<{ date: string; meal: Meal } | null>(null);
+  const [showPrefs, setShowPrefs] = useState(false);
   const dates = weekDates(anchor);
   const today = todayIso();
   const summary = profile && latestWeightKg !== null ? bodySummary(profile, latestWeightKg) : null;
   const target = summary?.target.kind === "target" ? summary.target.kcal : null;
+  const targets = target ? mealTargets(target) : null;
 
-  const dayKcal = (date: string) =>
-    PLAN_MEALS.reduce((t, m) => t + (recipeById(plan[date]?.[m] ?? "")?.kcal ?? 0), 0);
-  const weekHasItems = dates.some((d) => Object.keys(plan[d] ?? {}).length > 0);
+  const slot = (date: string, meal: Meal) => {
+    const r = recipeById(plan[date]?.[meal] ?? "");
+    return r ? { r, portion: portionOf(planPortions, date, meal) } : null;
+  };
+  const dayKcal = (date: string) => PLAN_MEALS.reduce((t, m) => {
+    const s = slot(date, m);
+    return t + (s ? s.r.kcal * s.portion : 0);
+  }, 0);
+  const planned = dates.flatMap((d) => PLAN_MEALS.map((m) => slot(d, m))).filter((x) => x !== null);
+  const plannedDays = dates.filter((d) => PLAN_MEALS.some((m) => slot(d, m))).length;
+  const weekHasItems = planned.length > 0;
+  const avgKcal = plannedDays ? dates.reduce((t, d) => t + dayKcal(d), 0) / plannedDays : 0;
+  const avgCost = plannedDays ? planned.reduce((t, s) => t + costPerServing(s.r) * s.portion, 0) / plannedDays : 0;
   const monthLabel = new Date(`${dates[0]}T12:00:00`).toLocaleDateString("en-NG", { month: "long", year: "numeric" });
+
+  const fillWeek = () => {
+    if (weekHasItems && !confirm("Replace this week's plan with a new one?")) return;
+    const { items } = personalWeekPlan(dates, target ?? GENERAL_KCAL, planPrefs);
+    replacePlan(target ? items : items.map((it) => ({ ...it, portion: 1 })));
+  };
 
   return (
     <div className="page page-wide">
-      <PageHeader title="Meal plan" subtitle="Plan your week, then shop for it in one tap">
+      <PageHeader title="Meal plan" subtitle={target ? `Sized to your daily target of about ${fmt(target)} kcal` : "Plan your week, then shop for it in one tap"}>
         <Link to={`/grocery?week=${dates[0]}`} className="btn btn-secondary"><ShoppingBasket size={18} /> Grocery list</Link>
         <Link to="/recipes" className="btn btn-primary"><Plus size={18} /> Browse recipes</Link>
       </PageHeader>
 
-      {summary?.target.kind === "needs_dietitian" && (
-        <div className="banner banner-warn">Because of your health details, a dietitian should set your plan. Use this as a general guide for now.</div>
+      {summary && summary.target.kind !== "target" && (
+        <div className="banner banner-warn">
+          Because of your health details, a dietitian should set your plan. We'll fill a general week with standard portions as a guide for now.
+        </div>
       )}
 
       <div className="card plan-toolbar">
@@ -46,32 +138,29 @@ export function MealPlan() {
             {new Date(`${dates[6]}T12:00:00`).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}
           </span>
         </div>
-        <div className="row">
-          <div className="chip-group" role="group" aria-label="Cuisines for sample plan">
-            {CUISINES.map((c) => {
-              const on = cuisines.includes(c.id);
-              return (
-                <button
-                  key={c.id}
-                  className={`chip${on ? " on" : ""}`}
-                  aria-pressed={on}
-                  onClick={() => setCuisines(on ? cuisines.filter((x) => x !== c.id) : [...cuisines, c.id])}
-                >
-                  {c.emoji} {c.label}
-                </button>
-              );
-            })}
-          </div>
-          <button className="btn btn-ink btn-small" disabled={cuisines.length === 0} onClick={() => replacePlan(sampleWeekPlan(dates, cuisines))}>
-            <Sparkles size={15} /> Fill with sample week
+        <div className="row plan-actions">
+          <button className="prefs-summary" onClick={() => setShowPrefs(true)} aria-label="Edit plan preferences">
+            <SlidersHorizontal size={15} />
+            {prefsSummary(planPrefs).map((t) => <span key={t} className="tag tag-outline">{t}</span>)}
+          </button>
+          <button className="btn btn-ink btn-small" onClick={fillWeek}>
+            <Sparkles size={15} /> {target ? "Personalise my week" : "Fill a general week"}
           </button>
           {weekHasItems && (
-            <button className="btn btn-ghost btn-small" onClick={() => dates.forEach((d) => PLAN_MEALS.forEach((m) => setPlanSlot(d, m, null)))}>
+            <button className="btn btn-ghost btn-small" onClick={() => dates.forEach((d) => PLAN_MEALS.forEach((m) => slot(d, m) && setPlanSlot(d, m, null)))}>
               <Trash2 size={15} /> Clear week
             </button>
           )}
         </div>
       </div>
+
+      {weekHasItems && (
+        <div className="plan-summary" role="status">
+          <span><strong>{fmt(avgKcal)}</strong> kcal a day{target ? <span className="muted"> · target {fmt(target)}</span> : null}</span>
+          <span><strong>{naira(avgCost)}</strong> <span className="muted">a day per person (estimate)</span></span>
+          <span className="muted small"><ArrowLeftRight size={13} /> Tap any dish to swap it</span>
+        </div>
+      )}
 
       <div className="plan-grid" role="table" aria-label="Weekly meal plan">
         <div className="plan-row plan-head" role="row">
@@ -89,22 +178,22 @@ export function MealPlan() {
                 <strong>{d.toLocaleDateString("en-NG", { weekday: "long" })}</strong>
                 <span className="muted small">{d.toLocaleDateString("en-NG", { day: "numeric", month: "short" })}</span>
                 {kcal > 0 && (
-                  <span className={`plan-kcal${target && kcal > target ? " over" : ""}`}>
+                  <span className={`plan-kcal${target && kcal > target * 1.1 ? " over" : ""}`}>
                     {fmt(kcal)}{target ? ` / ${fmt(target)}` : ""} kcal
                   </span>
                 )}
               </div>
               {PLAN_MEALS.map((meal) => {
-                const r = recipeById(plan[date]?.[meal] ?? "");
+                const s = slot(date, meal);
                 return (
                   <div key={meal} role="cell" className={`plan-cell cell-${meal.toLowerCase()}`}>
                     <span className="plan-cell-label">{meal === "Snacks" ? "Snack" : meal}</span>
-                    {r ? (
+                    {s ? (
                       <button className="plan-item" onClick={() => setEditing({ date, meal })}>
-                        <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
+                        <Thumb emoji={s.r.emoji} size="sm" photo={`recipe:${s.r.id}`} />
                         <span>
-                          <strong>{r.name}</strong>
-                          <small>{r.kcal} kcal</small>
+                          <strong>{s.r.name}</strong>
+                          <small>{s.portion !== 1 ? `${portionLabel(s.portion)} · ` : ""}{fmt(s.r.kcal * s.portion)} kcal</small>
                         </span>
                       </button>
                     ) : (
@@ -119,51 +208,128 @@ export function MealPlan() {
           );
         })}
       </div>
-      <SampleNotice>The sample week rotates Nutrifi's sample recipes. It isn't a personalised plan — those come from dietitians.</SampleNotice>
+      <SampleNotice>
+        Plans use Nutrifi's sample recipes and estimated ₦ prices. A plan from your dietitian always comes first.
+      </SampleNotice>
+
+      {showPrefs && <PrefsSheet prefs={planPrefs} onSave={updatePlanPrefs} onClose={() => setShowPrefs(false)} />}
 
       {editing && (
-        <Sheet
-          title={`${editing.meal} · ${new Date(`${editing.date}T12:00:00`).toLocaleDateString("en-NG", { weekday: "long", day: "numeric", month: "short" })}`}
+        <SlotSheet
+          date={editing.date}
+          meal={editing.meal}
+          current={slot(editing.date, editing.meal)}
+          mealKcal={targets ? targets[editing.meal] : null}
+          prefs={planPrefs}
+          onPick={(recipeId, portion) => setPlanSlot(editing.date, editing.meal, recipeId, portion)}
           onClose={() => setEditing(null)}
-        >
-          <ul className="food-rows">
-            {[...RECIPES]
-              .sort((a, b) => Number(b.meal === editing.meal) - Number(a.meal === editing.meal))
-              .map((r) => {
-                const selected = plan[editing.date]?.[editing.meal] === r.id;
-                return (
-                  <li key={r.id}>
-                    <button
-                      className={`food-row${selected ? " is-selected" : ""}`}
-                      onClick={() => {
-                        setPlanSlot(editing.date, editing.meal, r.id);
-                        setEditing(null);
-                      }}
-                    >
-                      <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
-                      <div className="food-row-body">
-                        <strong className="small">{r.name}</strong>
-                        <span className="muted small">{r.cuisine} · {r.meal} · {r.kcal} kcal</span>
-                      </div>
-                      {selected && <span className="badge badge-ok">Planned</span>}
-                    </button>
-                  </li>
-                );
-              })}
-          </ul>
-          {plan[editing.date]?.[editing.meal] && (
-            <button
-              className="btn btn-danger btn-block"
-              onClick={() => {
-                setPlanSlot(editing.date, editing.meal, null);
-                setEditing(null);
-              }}
-            >
-              <Trash2 size={16} /> Remove from plan
-            </button>
-          )}
-        </Sheet>
+        />
       )}
     </div>
+  );
+}
+
+function SlotSheet({
+  date,
+  meal,
+  current,
+  mealKcal,
+  prefs,
+  onPick,
+  onClose,
+}: {
+  date: string;
+  meal: Meal;
+  current: { r: Recipe; portion: number } | null;
+  mealKcal: number | null;
+  prefs: PlanPrefs;
+  onPick: (recipeId: string | null, portion?: number) => void;
+  onClose: () => void;
+}) {
+  const title = `${meal === "Snacks" ? "Snack" : meal} · ${new Date(`${date}T12:00:00`).toLocaleDateString("en-NG", { weekday: "long", day: "numeric", month: "short" })}`;
+  const swaps = current ? swapOptions(meal, { recipeId: current.r.id, portion: current.portion }, prefs, 4) : [];
+  const pick = (id: string | null, portion?: number) => {
+    onPick(id, portion);
+    onClose();
+  };
+  const sameSlotFirst = [...RECIPES].sort((a, b) => Number(b.meal === meal) - Number(a.meal === meal));
+
+  return (
+    <Sheet title={title} onClose={onClose}>
+      {current && (
+        <div className="slot-current">
+          <Thumb emoji={current.r.emoji} size="sm" photo={`recipe:${current.r.id}`} />
+          <div className="grow">
+            <Link to={`/recipes/${current.r.id}`} className="row-title small">{current.r.name}</Link>
+            <span className="muted small">
+              {fmt(current.r.kcal * current.portion)} kcal · {naira(costPerServing(current.r) * current.portion)}
+              {mealKcal ? ` · aim ≈ ${fmt(mealKcal)} kcal` : ""}
+            </span>
+          </div>
+          <div className="stepper compact" aria-label="Portion">
+            <button className="icon-btn sm ghost" disabled={current.portion <= 0.5} onClick={() => onPick(current.r.id, current.portion - 0.25)} aria-label="Smaller portion"><Minus size={14} /></button>
+            <span className="small"><strong>{portionLabel(current.portion).replace(/ servings?$/, "")}</strong> <span className="muted">serv.</span></span>
+            <button className="icon-btn sm ghost" disabled={current.portion >= 2} onClick={() => onPick(current.r.id, current.portion + 0.25)} aria-label="Bigger portion"><Plus size={14} /></button>
+          </div>
+        </div>
+      )}
+
+      {current && (
+        <>
+          <h3 className="row"><ArrowLeftRight size={16} /> Swap for something similar</h3>
+          {swaps.length === 0 ? (
+            <p className="small muted">No close matches with your preferences. Pick any dish below.</p>
+          ) : (
+            <ul className="swap-list">
+              {swaps.map((o) => (
+                <li key={o.recipe.id}>
+                  <button className="swap-option" onClick={() => pick(o.recipe.id, o.portion)}>
+                    <Thumb emoji={o.recipe.emoji} size="sm" photo={`recipe:${o.recipe.id}`} />
+                    <span className="grow">
+                      <strong className="small">{o.recipe.name}</strong>
+                      <span className="muted small">
+                        {portionLabel(o.portion)} · {fmt(o.kcal)} kcal ({signed(o.deltaKcal)}) · {naira(o.cost)}
+                      </span>
+                      <span className="swap-reasons">
+                        {o.reasons.map((r) => <span key={r} className={`tag${r === "Cheaper" || r === "More protein" ? " tag-breakfast" : " tag-outline"}`}>{r}</span>)}
+                      </span>
+                    </span>
+                    <span className="swap-cta">Swap</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      <h3>{current ? "Or choose any dish" : "Choose a dish"}</h3>
+      <ul className="food-rows">
+        {sameSlotFirst.map((r) => {
+          const selected = current?.r.id === r.id;
+          const why = conflict(r, prefs);
+          const portion = mealKcal ? fitPortion(r, mealKcal) : 1;
+          return (
+            <li key={r.id}>
+              <button className={`food-row${selected ? " is-selected" : ""}`} onClick={() => pick(r.id, portion)}>
+                <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
+                <div className="food-row-body">
+                  <strong className="small">{r.name}</strong>
+                  <span className="muted small">
+                    {r.cuisine} · {r.meal} · {portion !== 1 ? `${portionLabel(portion)}, ` : ""}{fmt(r.kcal * portion)} kcal
+                  </span>
+                </div>
+                {selected ? <span className="badge badge-ok">Planned</span> : why ? <span className="badge">{why}</span> : null}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {current && (
+        <button className="btn btn-danger btn-block" onClick={() => pick(null)}>
+          <Trash2 size={16} /> Remove from plan
+        </button>
+      )}
+    </Sheet>
   );
 }

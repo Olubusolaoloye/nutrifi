@@ -18,6 +18,7 @@ import { Messages } from "./pages/Messages";
 import { Onboarding } from "./pages/Onboarding";
 import { Progress } from "./pages/Progress";
 import { RecipeDetail, Recipes } from "./pages/Recipes";
+import { Reminders } from "./pages/Reminders";
 import { Workbench } from "./pages/Workbench";
 import { useStore } from "./state/store";
 
@@ -40,6 +41,7 @@ function appRoutes(isAdmin: boolean) {
       <Route path="/calendar" element={<Calendar />} />
       <Route path="/messages" element={<Messages />} />
       <Route path="/exercises" element={<Exercises />} />
+      <Route path="/reminders" element={<Reminders />} />
       {isAdmin && <Route path="/admin" element={<Admin />} />}
     </Route>
   );

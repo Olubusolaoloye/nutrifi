@@ -8,7 +8,7 @@ import { CUISINES, foodById, nutrientsFor, type Cuisine } from "../data/foods";
 import { recipeById } from "../data/recipes";
 import { BMI_CATEGORY_LABEL, SACHET_ML, bmiCategory } from "../lib/nutrition";
 import { bodySummary, dailyTotals, fmt } from "../state/derived";
-import { MEALS, canUseWorkbench, todayIso, useStore, type Meal } from "../state/store";
+import { MEALS, canUseWorkbench, portionOf, todayIso, useStore, type Meal } from "../state/store";
 
 const ROLE_LABEL = { consumer: "Member", student: "Nutrition student", dietitian: "Dietitian" };
 
@@ -36,7 +36,7 @@ const POPULAR: Record<Cuisine, Array<{ name: string; emoji: string; meal: Meal; 
 
 export function Home() {
   const navigate = useNavigate();
-  const { profile, diary, water, plan, latestWeightKg, addWater } = useStore();
+  const { profile, diary, water, plan, planPortions, latestWeightKg, addWater } = useStore();
   const [filter, setFilter] = useState<Meal | "All">("All");
   const [query, setQuery] = useState("");
   const [cuisine, setCuisine] = useState<Cuisine>("Nigerian");
@@ -176,7 +176,7 @@ export function Home() {
                     <li key={m}>
                       <Thumb emoji={r.emoji} size="sm" photo={`recipe:${r.id}`} />
                       <div><span className="muted small">{m}</span><Link to={`/recipes/${r.id}`} className="row-title small">{r.name}</Link></div>
-                      <span className="muted small">{r.kcal} kcal</span>
+                      <span className="muted small">{fmt(r.kcal * portionOf(planPortions, today, m))} kcal</span>
                     </li>
                   ) : null;
                 })}

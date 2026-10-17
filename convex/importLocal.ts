@@ -13,7 +13,7 @@ export const importLocal = mutation({
     water: v.array(v.object({ date: isoDate, ml: v.number() })),
     weights: v.array(v.object({ date: isoDate, weightKg: v.number() })),
     notes: v.array(v.object({ date: isoDate, slot: noteSlot, ...noteFields, updatedAt: v.string() })),
-    plan: v.array(v.object({ date: isoDate, meal, recipeId: v.string() })),
+    plan: v.array(v.object({ date: isoDate, meal, recipeId: v.string(), portion: v.optional(v.number()) })),
     events: v.array(v.object(eventFields)),
     exercises: v.array(v.object(exerciseFields)),
   },

@@ -12,7 +12,7 @@ export const snapshot = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const user = await ctx.db.get(userId);
-    const [profile, diary, water, weights, events, exercises, notes, plan, grocery, verifications] = await Promise.all([
+    const [profile, diary, water, weights, events, exercises, notes, plan, grocery, verifications, settings] = await Promise.all([
       getProfile(ctx, userId),
       ctx.db.query("diary").withIndex("by_user_date", (q) => q.eq("userId", userId)).collect(),
       ctx.db.query("water").withIndex("by_user_date", (q) => q.eq("userId", userId)).collect(),
@@ -23,6 +23,7 @@ export const snapshot = query({
       ctx.db.query("plan").withIndex("by_user_date_meal", (q) => q.eq("userId", userId)).collect(),
       ctx.db.query("grocery").withIndex("by_user", (q) => q.eq("userId", userId)).unique(),
       ctx.db.query("verifications").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+      ctx.db.query("settings").withIndex("by_user", (q) => q.eq("userId", userId)).unique(),
     ]);
     const latest = verifications.sort((a, b) => b.submittedAt - a.submittedAt)[0] ?? null;
 
@@ -39,6 +40,8 @@ export const snapshot = query({
       notes,
       plan,
       grocery,
+      planPrefs: settings?.planPrefs ?? null,
+      reminders: settings?.reminders ?? null,
     };
   },
 });

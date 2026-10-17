@@ -2,7 +2,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
@@ -190,5 +190,114 @@ describe("import, deletion and waitlist", () => {
     expect(await t.mutation(api.waitlist.join, { email: "folake@example.com", role: "dietitian" })).toEqual({ alreadyJoined: true });
     await expect(t.mutation(api.waitlist.join, { email: "not-an-email", role: "member" })).rejects.toThrow(/valid email/);
     expect(await t.run((ctx) => ctx.db.query("waitlist").collect())).toHaveLength(1);
+  });
+});
+
+describe("meal plan portions and preferences", () => {
+  it("stores portions with plan slots and saves plan preferences", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await signedIn(t, "ada@example.com");
+    await as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 70 });
+    await as.mutation(api.data.replacePlan, { items: [{ date: "2026-10-19", meal: "Lunch", recipeId: "jollof-chicken", portion: 1.5 }] });
+    await as.mutation(api.data.setPlanSlot, { date: "2026-10-19", meal: "Dinner", recipeId: "pepper-soup", portion: 0.75 });
+    await expect(as.mutation(api.data.setPlanSlot, { date: "2026-10-19", meal: "Dinner", recipeId: "pepper-soup", portion: 9 })).rejects.toThrow(/Portion/);
+    const prefs = { cuisines: ["Nigerian" as const], diet: "pescatarian" as const, avoid: ["peanut" as const], budgetPerDay: 3000 };
+    await as.mutation(api.settings.updatePlanPrefs, { prefs });
+    await expect(as.mutation(api.settings.updatePlanPrefs, { prefs: { ...prefs, budgetPerDay: 10 } })).rejects.toThrow(/budget/);
+    const s = (await as.query(api.me.snapshot, {}))!;
+    expect(s.plan.map((p) => [p.meal, p.portion])).toEqual(expect.arrayContaining([["Lunch", 1.5], ["Dinner", 0.75]]));
+    expect(s.planPrefs).toEqual(prefs);
+  });
+});
+
+const REMINDERS = {
+  push: true,
+  whatsapp: true,
+  meals: {
+    Breakfast: { on: true, time: "07:30" },
+    Lunch: { on: true, time: "13:00" },
+    Dinner: { on: true, time: "19:00" },
+    Snacks: { on: false, time: "16:00" },
+  },
+  water: { on: false, everyHours: 2, from: "08:00", to: "20:00" },
+  weighIn: { on: false, day: 1, time: "07:00" },
+  planning: { on: false, day: 0, time: "17:00" },
+  appointments: { on: true, minutesBefore: 60 },
+  utcOffsetMinutes: 60,
+};
+const SUB = { endpoint: "https://fcm.googleapis.com/fcm/send/abc", p256dh: "BKey", auth: "authsecret" };
+
+describe("reminders", () => {
+  it("validates and saves reminder settings", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await signedIn(t, "ada@example.com");
+    await expect(as.mutation(api.settings.updateReminders, { reminders: { ...REMINDERS, water: { ...REMINDERS.water, everyHours: 0 } } })).rejects.toThrow(/Water/);
+    await as.mutation(api.settings.updateReminders, { reminders: REMINDERS });
+    await as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 70 });
+    expect((await as.query(api.me.snapshot, {}))!.reminders).toEqual(REMINDERS);
+  });
+
+  it("keeps one owner per push endpoint", async () => {
+    const t = convexTest(schema, modules);
+    const a = await signedIn(t, "a@example.com");
+    const b = await signedIn(t, "b@example.com");
+    await a.as.mutation(api.reminders.savePushSubscription, SUB);
+    await b.as.mutation(api.reminders.savePushSubscription, SUB);
+    expect((await a.as.query(api.reminders.myChannels, {})).pushEndpoints).toEqual([]);
+    expect((await b.as.query(api.reminders.myChannels, {})).pushEndpoints).toEqual([SUB.endpoint]);
+    await expect(a.as.mutation(api.reminders.savePushSubscription, { ...SUB, endpoint: "http://insecure" })).rejects.toThrow();
+    // Someone else can't remove your subscription.
+    await a.as.mutation(api.reminders.removePushSubscription, { endpoint: SUB.endpoint });
+    expect((await b.as.query(api.reminders.myChannels, {})).pushEndpoints).toEqual([SUB.endpoint]);
+  });
+
+  it("confirms a WhatsApp number with a code before using it", async () => {
+    vi.stubEnv("WHATSAPP_TOKEN", "token");
+    vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "123");
+    const t = convexTest(schema, modules);
+    const { as } = await signedIn(t, "ada@example.com");
+    await expect(as.mutation(api.reminders.startWhatsApp, { phone: "123" })).rejects.toThrow(/valid phone/);
+    expect(await as.mutation(api.reminders.startWhatsApp, { phone: "0803 123 4567" })).toEqual({ phone: "+2348031234567" });
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    const code = (jobs.at(-1)!.args[0] as { code: string }).code;
+    expect(code).toMatch(/^\d{6}$/);
+    expect((await as.query(api.reminders.myChannels, {})).whatsapp).toMatchObject({ verified: false, codePending: true });
+    await expect(as.mutation(api.reminders.confirmWhatsApp, { code: code === "000000" ? "111111" : "000000" })).rejects.toThrow(/isn't right/);
+    await as.mutation(api.reminders.confirmWhatsApp, { code });
+    expect((await as.query(api.reminders.myChannels, {})).whatsapp).toMatchObject({ phone: "+2348031234567", verified: true });
+    // Rate limit: 3 codes an hour.
+    await as.mutation(api.reminders.startWhatsApp, { phone: "08031234567" });
+    await as.mutation(api.reminders.startWhatsApp, { phone: "08031234567" });
+    await expect(as.mutation(api.reminders.startWhatsApp, { phone: "08031234567" })).rejects.toThrow(/Too many/);
+  });
+
+  it("refuses WhatsApp when the provider isn't configured", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await signedIn(t, "ada@example.com");
+    expect((await t.query(api.reminders.config, {})).whatsappAvailable).toBe(false);
+    await expect(as.mutation(api.reminders.startWhatsApp, { phone: "08031234567" })).rejects.toThrow(/aren't switched on/);
+  });
+
+  it("claims due reminders once, with the planned dish", async () => {
+    const t = convexTest(schema, modules);
+    const { as, userId } = await signedIn(t, "ada@example.com");
+    await as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 70 });
+    await as.mutation(api.settings.updateReminders, { reminders: REMINDERS });
+    await as.mutation(api.data.setPlanSlot, { date: "2026-10-20", meal: "Lunch", recipeId: "jollof-chicken", portion: 1.5 });
+    const lunch = Date.parse("2026-10-20T12:05:00Z"); // 13:05 in Lagos
+
+    // No channel yet: nothing to deliver, nothing logged.
+    expect(await t.mutation(internal.reminders.claimDue, { now: lunch })).toEqual([]);
+
+    await as.mutation(api.reminders.savePushSubscription, SUB);
+    const [d] = await t.mutation(internal.reminders.claimDue, { now: lunch });
+    expect(d.name).toBe("Adaeze");
+    expect(d.push).toEqual([SUB]);
+    expect(d.whatsapp).toBeNull();
+    expect(d.messages).toEqual([expect.objectContaining({ key: "2026-10-20|meal|Lunch" })]);
+    expect(d.messages[0].body).toContain("Jollof rice with grilled chicken (1½ servings)");
+    // The next run inside the same window sends nothing.
+    expect(await t.mutation(internal.reminders.claimDue, { now: lunch + 5 * 60_000 })).toEqual([]);
+    expect(await t.query(internal.reminders.logCount, { userId })).toBe(1);
   });
 });

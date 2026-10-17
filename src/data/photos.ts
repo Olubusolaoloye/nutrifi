@@ -105,7 +105,22 @@ const RECIPE_TO_FOOD: Record<string, string> = {
   "curry-rice": "chicken-curry",
   oatmeal: "oatmeal",
   "yoghurt-berries": "yoghurt-bowl",
+  "white-rice-stew": "white-rice",
+  "ofada-stew": "ofada",
+  "okra-eba": "okra",
+  "efo-amala": "efo",
+  "suya-salad": "suya",
+  "bread-egg-tea": "bread",
+  "french-toast-fruit": "french-toast",
+  "chicken-salad": "caesar",
+  "roast-chicken-veg": "roast-chicken",
+  "chicken-bowl": "poke",
+  "fried-rice-veg": "chinese-fried-rice",
+  "hummus-veg": "hummus-pita",
 };
+
+/** No suitable openly licensed photo found yet: these show their emoji. */
+export const EMOJI_ONLY = new Set(["recipe:pepper-soup", "recipe:yam-egg"]);
 
 export function photoFor(key: string): Photo | undefined {
   if (PHOTOS[key]) return PHOTOS[key];

@@ -9,12 +9,17 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
 import type * as data from "../data.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as importLocal from "../importLocal.js";
 import type * as me from "../me.js";
+import type * as notify from "../notify.js";
+import type * as passwordReset from "../passwordReset.js";
 import type * as profile from "../profile.js";
+import type * as reminders from "../reminders.js";
+import type * as settings from "../settings.js";
 import type * as validators from "../validators.js";
 import type * as verification from "../verification.js";
 import type * as waitlist from "../waitlist.js";
@@ -31,12 +36,17 @@ import type { ApiFromModules, FilterApi, FunctionReference } from "convex/server
  */
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  crons: typeof crons;
   data: typeof data;
   helpers: typeof helpers;
   http: typeof http;
   importLocal: typeof importLocal;
   me: typeof me;
+  notify: typeof notify;
+  passwordReset: typeof passwordReset;
   profile: typeof profile;
+  reminders: typeof reminders;
+  settings: typeof settings;
   validators: typeof validators;
   verification: typeof verification;
   waitlist: typeof waitlist;
