@@ -16,6 +16,10 @@ Nutrifi runs in two modes:
 | `reminders.ts` | Push subscriptions, WhatsApp number confirmation (6-digit code), test reminders, and `claimDue`, which works out what's due and records it so nothing is sent twice |
 | `notify.ts` | Sends reminders (Node runtime): web push with VAPID keys, WhatsApp Cloud API template messages |
 | `crons.ts` | Checks for due reminders every 5 minutes |
+| `interventions.ts` | Paid programmes: catalogue of verified dietitians' offerings, enrolment with intake and consent, member programme view, messages, payment confirmation (`markPaid`) |
+| `payments.ts` | Paystack checkout (`startPayment`) and verification on return (`verifyPayment`) |
+| `clients.ts` | Dietitian tools: profile and payout account, offerings and prices, client list, client detail, set target, send plan, supplements, check-ins, complete; admin payouts |
+| `http.ts` | Convex Auth routes and the Paystack webhook (`/paystack/webhook`, signature-checked) |
 | `me.ts` | `snapshot` — one reactive query with everything the signed-in user needs |
 | `profile.ts` | Create the profile at the end of onboarding; edit personal details (role and verification can't be changed by users) |
 | `data.ts` | Diary, water, weight, notes, plan, grocery, calendar and exercise mutations; delete my data / account |
@@ -98,6 +102,18 @@ Never change the VAPID keys once people have subscribed — existing devices wou
    ```
 
 Members add their number under **Reminders**, tick the consent box and confirm it with the 6-digit code sent to WhatsApp. Reminders only go to confirmed numbers; up to 3 codes an hour and 5 tries per code. Meta charges per conversation — check current WhatsApp pricing for Nigeria.
+
+## Paid programmes: Paystack
+
+1. Create a Paystack business account (https://paystack.com) and get your **secret key** (Settings → API Keys & Webhooks). Start with the `sk_test_…` key.
+2. `npx convex env set PAYSTACK_SECRET_KEY sk_test_xxx` (add `--prod` for production with the `sk_live_…` key). `SITE_URL` (set during auth setup) is where Paystack sends members back: `<SITE_URL>/programmes/paid`.
+3. In Paystack → **Webhook URL**, enter `https://<your-deployment>.convex.site/paystack/webhook` (the `.convex.site` URL is shown in the Convex dashboard).
+
+How money flows: the member pays Nutrifi the dietitian's price; Nutrifi keeps the platform fee (20%, `PLATFORM_FEE_PERCENT` in `src/data/programmes.ts`); admins pay the dietitian's share by bank transfer and record it under **Admin → Dietitian payouts**. An enrolment only becomes active when Paystack confirms a charge for exactly the price (via the webhook or the return check), so a tampered redirect can't activate it. Paystack split payments (subaccounts) can replace manual payouts later.
+
+For testing without Paystack, `npx convex env set PAYMENTS_DEMO true` activates programmes without payment. Demo enrolments are marked and never count as earnings. **Never set it in production.**
+
+Privacy: a dietitian sees a member's diary, water, weight and notes only while that member's paid programme is active and only because the member ticked the consent box. When the programme ends the logs stop being shared; when a member deletes their data, their messages, check-ins and supplements are deleted and the enrolment stays only as a payment record.
 
 ## Notes
 

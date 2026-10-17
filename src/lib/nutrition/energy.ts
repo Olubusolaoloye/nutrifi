@@ -87,6 +87,8 @@ export type ConsumerTarget =
       maintenanceKcal: number;
       /** Set when the goal was adjusted for safety, e.g. weight loss while underweight. */
       note?: string;
+      /** "dietitian" when the member's dietitian set it on a programme. */
+      source?: "dietitian";
     }
   | { kind: "needs_dietitian"; reason: "condition" | "under_18" };
 

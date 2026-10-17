@@ -214,6 +214,22 @@ export const deleteMyData = mutation({
       if (r.documentId) await ctx.storage.delete(r.documentId);
       await ctx.db.delete(r._id);
     }
+    // Programmes: messages, check-ins and supplements go; the enrolment stays as a payment record without health details.
+    for (const e of await ctx.db.query("enrolments").withIndex("by_member", (q) => q.eq("memberId", userId)).collect()) {
+      for (const table of ["messages", "checkIns", "adjuncts"] as const) {
+        for (const r of await ctx.db.query(table).withIndex("by_enrolment", (q) => q.eq("enrolmentId", e._id)).collect()) await ctx.db.delete(r._id);
+      }
+      await ctx.db.patch(e._id, {
+        memberDeleted: true,
+        status: e.status === "pending_payment" ? "cancelled" : e.status === "active" ? "completed" : e.status,
+        intake: { goals: "", conditions: [], medications: "", typicalDay: "", allergies: "", consent: false },
+        target: undefined,
+      });
+    }
+    // A dietitian's own listing.
+    for (const r of await ctx.db.query("offerings").withIndex("by_dietitian", (q) => q.eq("dietitianId", userId)).collect()) await ctx.db.patch(r._id, { active: false });
+    for (const r of await ctx.db.query("dietitianProfiles").withIndex("by_user", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(r._id);
+
     const profile = await getProfile(ctx, userId);
     if (profile) await ctx.db.delete(profile._id);
 

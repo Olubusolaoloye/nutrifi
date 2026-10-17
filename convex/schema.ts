@@ -2,9 +2,12 @@ import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
+  dietitianTarget,
   diaryFields,
+  enrolmentStatus,
   eventFields,
   exerciseFields,
+  intake,
   isoDate,
   meal,
   noteFields,
@@ -104,6 +107,90 @@ export default defineSchema({
   reminderLog: defineTable({ userId: v.id("users"), key: v.string(), sentAt: v.number() })
     .index("by_user_key", ["userId", "key"])
     .index("by_sentAt", ["sentAt"]),
+
+  /* ---------- Paid interventions ---------- */
+
+  /** A dietitian's public profile and payout details (payout details are never shown to members). */
+  dietitianProfiles: defineTable({
+    userId: v.id("users"),
+    bio: v.string(),
+    languages: v.array(v.string()),
+    yearsExperience: v.number(),
+    payout: v.optional(v.object({ bankName: v.string(), accountNumber: v.string(), accountName: v.string() })),
+  }).index("by_user", ["userId"]),
+
+  /** A programme a dietitian offers, at their price. */
+  offerings: defineTable({
+    dietitianId: v.id("users"),
+    programmeId: v.string(),
+    priceNaira: v.number(),
+    active: v.boolean(),
+  })
+    .index("by_dietitian", ["dietitianId"])
+    .index("by_active", ["active"]),
+
+  /** A member's place on a programme with one dietitian. Price and fee are fixed when they enrol. */
+  enrolments: defineTable({
+    memberId: v.id("users"),
+    dietitianId: v.id("users"),
+    offeringId: v.id("offerings"),
+    programmeId: v.string(),
+    priceNaira: v.number(),
+    feeNaira: v.number(),
+    status: enrolmentStatus,
+    intake,
+    createdAt: v.number(),
+    paymentRef: v.optional(v.string()),
+    paidAt: v.optional(v.number()),
+    /** Set to true when the payment was simulated (PAYMENTS_DEMO). */
+    demoPayment: v.optional(v.boolean()),
+    startDate: v.optional(isoDate),
+    target: v.optional(dietitianTarget),
+    planWeekStart: v.optional(isoDate),
+    memberReadAt: v.optional(v.number()),
+    dietitianReadAt: v.optional(v.number()),
+    /** The member deleted their data; the row stays as a payment record only. */
+    memberDeleted: v.optional(v.boolean()),
+  })
+    .index("by_member", ["memberId"])
+    .index("by_dietitian", ["dietitianId"])
+    .index("by_paymentRef", ["paymentRef"]),
+
+  /** Supplements and adjuncts — only ever added by the member's dietitian. */
+  adjuncts: defineTable({
+    enrolmentId: v.id("enrolments"),
+    name: v.string(),
+    dose: v.string(),
+    timing: v.string(),
+    reason: v.string(),
+    approvedBy: v.id("users"),
+    approvedAt: v.number(),
+  }).index("by_enrolment", ["enrolmentId"]),
+
+  checkIns: defineTable({
+    enrolmentId: v.id("enrolments"),
+    week: v.number(),
+    summary: v.string(),
+    nextSteps: v.string(),
+    weightKg: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_enrolment", ["enrolmentId"]),
+
+  messages: defineTable({
+    enrolmentId: v.id("enrolments"),
+    senderId: v.id("users"),
+    text: v.string(),
+    sentAt: v.number(),
+  }).index("by_enrolment", ["enrolmentId"]),
+
+  /** Payouts to dietitians, recorded by admins after a bank transfer. */
+  payouts: defineTable({
+    dietitianId: v.id("users"),
+    amountNaira: v.number(),
+    reference: v.string(),
+    paidAt: v.number(),
+    recordedBy: v.id("users"),
+  }).index("by_dietitian", ["dietitianId"]),
 
   waitlist: defineTable({
     email: v.string(),

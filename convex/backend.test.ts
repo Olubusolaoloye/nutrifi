@@ -3,6 +3,7 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
@@ -299,5 +300,176 @@ describe("reminders", () => {
     // The next run inside the same window sends nothing.
     expect(await t.mutation(internal.reminders.claimDue, { now: lunch + 5 * 60_000 })).toEqual([]);
     expect(await t.query(internal.reminders.logCount, { userId })).toBe(1);
+  });
+});
+
+/* ---------- Paid interventions & client tools ---------- */
+
+const INTAKE = { goals: "Lower my blood sugar", conditions: ["diabetes" as const], medications: "Metformin 500 mg", typicalDay: "Bread and tea, rice at lunch", allergies: "", consent: true };
+
+async function dietitian(t: ReturnType<typeof convexTest>, email: string, opts: { verified?: boolean; bio?: boolean } = {}) {
+  const d = await signedIn(t, email);
+  await d.as.mutation(api.profile.create, { ...PROFILE, name: "Dr Funke", role: "dietitian", weightKg: 65, credential: "LDCN 1234" });
+  if (opts.verified !== false) {
+    await t.run(async (ctx) => {
+      const p = (await ctx.db.query("profiles").collect()).find((row) => row.userId === d.userId);
+      await ctx.db.patch(p!._id, { verification: "verified" });
+    });
+    if (opts.bio !== false) await d.as.mutation(api.clients.saveProfile, { bio: "Diabetes specialist in Lagos.", languages: ["English", "Yoruba"], yearsExperience: 8 });
+  }
+  return d;
+}
+
+/** Dietitian with a diabetes offering, a member enrolled and paid (demo). */
+async function paidSetup() {
+  vi.stubEnv("PAYMENTS_DEMO", "true");
+  const t = convexTest(schema, modules);
+  const d = await dietitian(t, "funke@clinic.ng");
+  await d.as.mutation(api.clients.saveOffering, { programmeId: "diabetes", priceNaira: 40000, active: true });
+  const [offering] = await t.query(api.interventions.catalogue, {});
+  const m = await signedIn(t, "ada@example.com");
+  await m.as.mutation(api.profile.create, { ...PROFILE, conditions: ["diabetes"], role: "consumer", weightKg: 80 });
+  const enrolmentId = await m.as.mutation(api.interventions.enrol, { offeringId: offering.id as Id<"offerings">, intake: INTAKE });
+  expect(await m.as.action(api.payments.startPayment, { enrolmentId })).toEqual({ demo: true });
+  return { t, d, m, enrolmentId, offeringId: offering.id as Id<"offerings"> };
+}
+
+describe("dietitian offerings", () => {
+  it("only verified dietitians with a bio can offer programmes, at a price in range", async () => {
+    const t = convexTest(schema, modules);
+    const pending = await dietitian(t, "new@clinic.ng", { verified: false });
+    await expect(pending.as.mutation(api.clients.saveOffering, { programmeId: "diabetes", priceNaira: 40000, active: true })).rejects.toThrow(/verified dietitians/);
+    const noBio = await dietitian(t, "nobio@clinic.ng", { bio: false });
+    await expect(noBio.as.mutation(api.clients.saveOffering, { programmeId: "diabetes", priceNaira: 40000, active: true })).rejects.toThrow(/bio/);
+    const d = await dietitian(t, "funke@clinic.ng");
+    await expect(d.as.mutation(api.clients.saveOffering, { programmeId: "diabetes", priceNaira: 999, active: true })).rejects.toThrow(/between/);
+    await d.as.mutation(api.clients.saveOffering, { programmeId: "diabetes", priceNaira: 40000, active: true });
+    const cat = await t.query(api.interventions.catalogue, {});
+    expect(cat).toEqual([expect.objectContaining({ programmeId: "diabetes", priceNaira: 40000, dietitian: expect.objectContaining({ name: "Dr Funke", languages: ["English", "Yoruba"] }) })]);
+    await d.as.mutation(api.clients.saveOffering, { programmeId: "diabetes", priceNaira: 40000, active: false });
+    expect(await t.query(api.interventions.catalogue, {})).toEqual([]);
+  });
+});
+
+describe("enrolling and paying", () => {
+  it("needs consent, and doesn't activate without a real or demo payment", async () => {
+    const t = convexTest(schema, modules);
+    const d = await dietitian(t, "funke@clinic.ng");
+    await d.as.mutation(api.clients.saveOffering, { programmeId: "diabetes", priceNaira: 40000, active: true });
+    const [offering] = await t.query(api.interventions.catalogue, {});
+    const m = await signedIn(t, "ada@example.com");
+    await m.as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 80 });
+    const offeringId = offering.id as Id<"offerings">;
+    await expect(m.as.mutation(api.interventions.enrol, { offeringId, intake: { ...INTAKE, consent: false } })).rejects.toThrow(/agree/);
+    await expect(d.as.mutation(api.interventions.enrol, { offeringId, intake: INTAKE })).rejects.toThrow(/own programme/);
+    const enrolmentId = await m.as.mutation(api.interventions.enrol, { offeringId, intake: INTAKE });
+    // Enrolling again reuses the unpaid enrolment.
+    expect(await m.as.mutation(api.interventions.enrol, { offeringId, intake: INTAKE })).toBe(enrolmentId);
+    await expect(m.as.action(api.payments.startPayment, { enrolmentId })).rejects.toThrow(/aren't switched on/);
+    expect((await m.as.query(api.interventions.myEnrolments, {}))[0]).toMatchObject({ status: "pending_payment", priceNaira: 40000 });
+    // The dietitian can't see unpaid clients.
+    expect(await d.as.query(api.clients.myClients, {})).toEqual([]);
+    await expect(d.as.query(api.clients.clientDetail, { enrolmentId })).rejects.toThrow(/Not found/);
+    await m.as.mutation(api.interventions.cancelPending, { enrolmentId });
+    expect(await m.as.query(api.interventions.myEnrolments, {})).toEqual([]);
+  });
+
+  it("activates on a correctly signed Paystack webhook with the exact amount, once", async () => {
+    vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_test_secret");
+    const t = convexTest(schema, modules);
+    const d = await dietitian(t, "funke@clinic.ng");
+    await d.as.mutation(api.clients.saveOffering, { programmeId: "weight-loss", priceNaira: 30000, active: true });
+    const [offering] = await t.query(api.interventions.catalogue, {});
+    const m = await signedIn(t, "ada@example.com");
+    await m.as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 80 });
+    const enrolmentId = await m.as.mutation(api.interventions.enrol, { offeringId: offering.id as Id<"offerings">, intake: INTAKE });
+    await t.mutation(internal.interventions.setPaymentRef, { enrolmentId, reference: "nf_ref1" });
+
+    const send = async (amount: number, secret = "sk_test_secret") => {
+      const body = JSON.stringify({ event: "charge.success", data: { reference: "nf_ref1", amount, currency: "NGN", status: "success" } });
+      const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
+      const sig = [...new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+      return t.fetch("/paystack/webhook", { method: "POST", body, headers: { "x-paystack-signature": sig } });
+    };
+    expect((await send(3_000_000, "wrong")).status).toBe(401);
+    expect((await send(100)).status).toBe(200); // underpaid: ignored
+    expect((await m.as.query(api.interventions.myEnrolments, {}))[0].status).toBe("pending_payment");
+    expect((await send(3_000_000)).status).toBe(200);
+    const [e] = await m.as.query(api.interventions.myEnrolments, {});
+    expect(e).toMatchObject({ status: "active", demoPayment: false });
+    expect(e.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(await t.mutation(internal.interventions.markPaid, { reference: "nf_ref1", amountKobo: 3_000_000 })).toBe("already_active");
+    // Real payments count towards earnings: ₦30,000 − 20% fee.
+    expect((await d.as.query(api.clients.myPractice, {})).earnings).toMatchObject({ grossNaira: 30000, feeNaira: 6000, netNaira: 24000, balanceNaira: 24000, activeClients: 1 });
+  });
+});
+
+describe("client tools", () => {
+  it("gives the dietitian the client's logs, and nobody else", async () => {
+    const { t, d, m, enrolmentId } = await paidSetup();
+    await m.as.mutation(api.data.addDiaryEntries, { entries: [{ date: "2026-10-20", meal: "Lunch", foodId: "jollof", grams: 280, portionLabel: "4 spoons" }] });
+    const [summary] = await d.as.query(api.clients.myClients, {});
+    expect(summary).toMatchObject({ enrolmentId, name: "Adaeze", programmeId: "diabetes", status: "active", latestWeightKg: 80 });
+    const detail = await d.as.query(api.clients.clientDetail, { enrolmentId });
+    expect(detail.intake.medications).toBe("Metformin 500 mg");
+    expect(detail.weights).toEqual([expect.objectContaining({ weightKg: 80 })]);
+
+    const other = await dietitian(t, "other@clinic.ng");
+    await expect(other.as.query(api.clients.clientDetail, { enrolmentId })).rejects.toThrow(/Not found/);
+    await expect(other.as.mutation(api.clients.setTarget, { enrolmentId, target: { kcal: 1800, carbsPercent: 45, proteinPercent: 20, fatPercent: 35, setAt: "" } })).rejects.toThrow(/Not found/);
+    await expect(m.as.query(api.clients.clientDetail, { enrolmentId })).rejects.toThrow(/verified dietitians/);
+  });
+
+  it("sets the member's target, sends a plan, approves supplements and checks in", async () => {
+    const { d, m, enrolmentId } = await paidSetup();
+    expect((await m.as.query(api.me.snapshot, {}))!.dietitianTarget).toBeNull();
+    await expect(d.as.mutation(api.clients.setTarget, { enrolmentId, target: { kcal: 1800, carbsPercent: 60, proteinPercent: 20, fatPercent: 35, setAt: "" } })).rejects.toThrow(/100%/);
+    await d.as.mutation(api.clients.setTarget, { enrolmentId, target: { kcal: 1750, carbsPercent: 45, proteinPercent: 20, fatPercent: 35, note: "Carb-aware", setAt: "" } });
+    expect((await m.as.query(api.me.snapshot, {}))!.dietitianTarget).toMatchObject({ kcal: 1750, carbsPercent: 45 });
+
+    await expect(d.as.mutation(api.clients.sendPlan, { enrolmentId, weekStart: "2026-10-19", items: [{ date: "2026-10-30", meal: "Lunch", recipeId: "okra-eba" }] })).rejects.toThrow(/chosen week/);
+    await d.as.mutation(api.clients.sendPlan, { enrolmentId, weekStart: "2026-10-19", items: [{ date: "2026-10-19", meal: "Lunch", recipeId: "okra-eba", portion: 1.25 }] });
+    const snap = (await m.as.query(api.me.snapshot, {}))!;
+    expect(snap.plan).toEqual([expect.objectContaining({ date: "2026-10-19", meal: "Lunch", recipeId: "okra-eba", portion: 1.25 })]);
+
+    await d.as.mutation(api.clients.addAdjunct, { enrolmentId, name: "Folic acid", dose: "400 µg", timing: "Morning", reason: "Planning pregnancy" });
+    await d.as.mutation(api.clients.addCheckIn, { enrolmentId, summary: "Good first week", nextSteps: "Swap white bread for oats twice a week", weightKg: 79.4 });
+    await d.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Welcome! Your plan is ready." });
+    const [e] = await m.as.query(api.interventions.myEnrolments, {});
+    expect(e.adjuncts).toEqual([expect.objectContaining({ name: "Folic acid", approvedBy: "Dr Funke" })]);
+    expect(e.checkIns).toEqual([expect.objectContaining({ week: 1, summary: "Good first week", weightKg: 79.4 })]);
+    expect(e.planWeekStart).toBe("2026-10-19");
+    expect(e.messages).toEqual([expect.objectContaining({ fromMe: false, senderName: "Dr Funke", text: "Welcome! Your plan is ready." })]);
+    expect(e.unread).toBe(1);
+    await m.as.mutation(api.interventions.markRead, { enrolmentId });
+    expect((await m.as.query(api.interventions.myEnrolments, {}))[0].unread).toBe(0);
+
+    await m.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Thank you!" });
+    expect((await d.as.query(api.clients.myClients, {}))[0].unread).toBe(1);
+    // Members can't add supplements for themselves.
+    await expect(m.as.mutation(api.clients.addAdjunct, { enrolmentId, name: "Anything", dose: "", timing: "", reason: "" })).rejects.toThrow();
+
+    await d.as.mutation(api.clients.completeEnrolment, { enrolmentId });
+    expect((await m.as.query(api.me.snapshot, {}))!.dietitianTarget).toBeNull();
+    await expect(m.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Hi" })).rejects.toThrow(/Messages open/);
+    // Completed programmes keep the history but no longer share health logs.
+    expect((await d.as.query(api.clients.clientDetail, { enrolmentId })).weights).toEqual([]);
+  });
+
+  it("doesn't count demo payments as earnings, and admins record payouts up to the balance", async () => {
+    const { t, d } = await paidSetup();
+    expect((await d.as.query(api.clients.myPractice, {})).earnings).toMatchObject({ grossNaira: 0, activeClients: 1 });
+    const admin = await signedIn(t, "admin@nutrifi.ng");
+    await expect(admin.as.mutation(api.clients.recordPayout, { dietitianId: d.userId, amountNaira: 100, reference: "TRF1" })).rejects.toThrow(/balance/);
+    await expect(d.as.query(api.clients.payoutsOverview, {})).rejects.toThrow(/Admins only/);
+  });
+
+  it("deleting a member's data keeps only the payment record", async () => {
+    const { d, m, enrolmentId } = await paidSetup();
+    await d.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Hello" });
+    await m.as.mutation(api.data.deleteMyData, {});
+    const detail = await d.as.query(api.clients.clientDetail, { enrolmentId });
+    expect(detail).toMatchObject({ name: "Deleted member", status: "completed", messages: [] });
+    expect(detail.intake.medications).toBe("");
   });
 });

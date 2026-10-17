@@ -88,3 +88,25 @@ export const reminderSettings = v.object({
   appointments: v.object({ on: v.boolean(), minutesBefore: v.number() }),
   utcOffsetMinutes: v.number(),
 });
+
+/** Mirrors Intake in src/lib/interventions.ts. */
+export const intake = v.object({
+  goals: v.string(),
+  conditions: v.array(condition),
+  medications: v.string(),
+  typicalDay: v.string(),
+  allergies: v.string(),
+  consent: v.boolean(),
+});
+
+/** Mirrors DietitianTarget in src/lib/interventions.ts. */
+export const dietitianTarget = v.object({
+  kcal: v.number(),
+  carbsPercent: v.number(),
+  proteinPercent: v.number(),
+  fatPercent: v.number(),
+  note: v.optional(v.string()),
+  setAt: v.string(),
+});
+
+export const enrolmentStatus = v.union(v.literal("pending_payment"), v.literal("active"), v.literal("completed"), v.literal("cancelled"));

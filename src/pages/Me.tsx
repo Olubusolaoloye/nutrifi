@@ -5,16 +5,17 @@ import { Avatar, NAV_ENTRIES } from "../components/Layout";
 import { Card, Disclaimer, Locked } from "../components/ui";
 import { CONDITION_LABEL, PAL } from "../lib/nutrition";
 import { bodySummary, fmt } from "../state/derived";
+import { clearInterventionsPreview } from "../state/interventions";
 import { canUseWorkbench, useStore } from "../state/store";
 
 const ROLE_LABEL = { consumer: "Member", student: "Nutrition student", dietitian: "Dietitian" };
 
 export function Me() {
   const navigate = useNavigate();
-  const { profile, latestWeightKg, updateProfile, resetAll, mode, account } = useStore();
+  const { profile, latestWeightKg, dietitianTarget, updateProfile, resetAll, mode, account } = useStore();
   const cloud = mode === "cloud";
   if (!profile || latestWeightKg === null) return null;
-  const s = bodySummary(profile, latestWeightKg);
+  const s = bodySummary(profile, latestWeightKg, dietitianTarget);
   const isPro = profile.role !== "consumer";
 
   return (
@@ -63,8 +64,11 @@ export function Me() {
       )}
 
       {canUseWorkbench(profile) ? (
-        <Card title="Professional Workbench" className="card-accent">
-          <button className="btn btn-primary" onClick={() => navigate("/workbench")}>Open Workbench</button>
+        <Card title="Professional tools" className="card-accent">
+          <div className="row">
+            {profile.role === "dietitian" && <button className="btn btn-primary" onClick={() => navigate("/clients")}>Clients & programmes</button>}
+            <button className={profile.role === "dietitian" ? "btn btn-secondary" : "btn btn-primary"} onClick={() => navigate("/workbench")}>Open Workbench</button>
+          </div>
         </Card>
       ) : isPro ? (
         cloud ? null : (
@@ -88,8 +92,10 @@ export function Me() {
           className="btn btn-danger"
           onClick={() => {
             if (confirm("Delete all your Nutrifi data on this device?")) {
-              void resetAll();
-              navigate("/");
+              void resetAll().then(() => {
+                clearInterventionsPreview();
+                window.location.assign("/");
+              });
             }
           }}
         >

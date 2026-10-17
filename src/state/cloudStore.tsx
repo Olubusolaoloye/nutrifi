@@ -163,6 +163,7 @@ export function ConvexStoreProvider({ children }: { children: ReactNode }) {
       account: snapshot ? { email: snapshot.email, isAdmin: snapshot.isAdmin } : null,
       verificationInfo: snapshot?.verification ?? null,
       latestWeightKg: latest ? latest.weightKg : null,
+      dietitianTarget: snapshot?.dietitianTarget ?? null,
       completeOnboarding: async (p, weightKg, credential) => {
         await createProfile({
           name: p.name, role: p.role, sex: p.sex, birthDate: p.birthDate, heightCm: p.heightCm,

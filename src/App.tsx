@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { AddFood } from "./pages/AddFood";
 import { Admin } from "./pages/Admin";
+import { ClientPage, Clients } from "./pages/Clients";
 import { Auth } from "./pages/Auth";
 import { Calendar } from "./pages/Calendar";
 import { Credits } from "./pages/Credits";
@@ -17,6 +18,7 @@ import { Me } from "./pages/Me";
 import { Messages } from "./pages/Messages";
 import { Onboarding } from "./pages/Onboarding";
 import { Progress } from "./pages/Progress";
+import { MyProgramme, PaymentReturn, ProgrammeDetail, Programmes } from "./pages/Programmes";
 import { RecipeDetail, Recipes } from "./pages/Recipes";
 import { Reminders } from "./pages/Reminders";
 import { Workbench } from "./pages/Workbench";
@@ -42,6 +44,12 @@ function appRoutes(isAdmin: boolean) {
       <Route path="/messages" element={<Messages />} />
       <Route path="/exercises" element={<Exercises />} />
       <Route path="/reminders" element={<Reminders />} />
+      <Route path="/programmes" element={<Programmes />} />
+      <Route path="/programmes/paid" element={<PaymentReturn />} />
+      <Route path="/programmes/:id" element={<ProgrammeDetail />} />
+      <Route path="/my-programmes/:id" element={<MyProgramme />} />
+      <Route path="/clients" element={<Clients />} />
+      <Route path="/clients/:id" element={<ClientPage />} />
       {isAdmin && <Route path="/admin" element={<Admin />} />}
     </Route>
   );

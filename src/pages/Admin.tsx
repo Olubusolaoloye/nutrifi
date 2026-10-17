@@ -4,6 +4,8 @@ import { useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { PageHeader } from "../components/ui";
+import { errorText } from "../lib/errors";
+import { fmt } from "../state/derived";
 
 /** Verification review queue for admins (listed in the ADMIN_EMAILS environment variable). */
 export function Admin() {
@@ -23,7 +25,7 @@ export function Admin() {
 
   return (
     <div className="page">
-      <PageHeader title="Verification queue" subtitle="Approve students and dietitians before they can use the Workbench" />
+      <PageHeader title="Admin" subtitle="Verify students and dietitians, and record dietitian payouts" />
       {pending === undefined ? (
         <p className="muted">Loading…</p>
       ) : pending.length === 0 ? (
@@ -70,6 +72,58 @@ export function Admin() {
       <p className="sample-notice">
         Check licence numbers against the national dietetics register, and student details against the institution, before approving.
       </p>
+      <Payouts />
     </div>
+  );
+}
+
+/** What Nutrifi owes each dietitian, and a record of bank transfers made. */
+function Payouts() {
+  const rows = useQuery(api.clients.payoutsOverview);
+  const record = useMutation(api.clients.recordPayout);
+  const [form, setForm] = useState<Record<string, { amount: string; reference: string }>>({});
+  const [msg, setMsg] = useState<Record<string, string>>({});
+  if (!rows || rows.length === 0) return null;
+  return (
+    <section>
+      <h2 className="section-title">Dietitian payouts</h2>
+      <div className="table-wrap card">
+        <table className="table">
+          <thead><tr><th>Dietitian</th><th>Earned</th><th>Paid</th><th>Owed</th><th>Account</th><th>Record transfer</th></tr></thead>
+          <tbody>
+            {rows.map((r) => {
+              const f = form[r.dietitianId] ?? { amount: String(r.balanceNaira), reference: "" };
+              return (
+                <tr key={r.dietitianId}>
+                  <td>{r.name}<br /><span className="muted small">{r.activeClients} active</span></td>
+                  <td>₦{fmt(r.netNaira)}</td>
+                  <td>₦{fmt(r.paidOutNaira)}</td>
+                  <td><strong>₦{fmt(r.balanceNaira)}</strong></td>
+                  <td className="small">{r.payout ? <>{r.payout.bankName}<br />{r.payout.accountNumber} · {r.payout.accountName}</> : <span className="muted">Not added</span>}</td>
+                  <td>
+                    {r.balanceNaira > 0 && (
+                      <form
+                        className="row"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          record({ dietitianId: r.dietitianId, amountNaira: Number(f.amount), reference: f.reference })
+                            .then(() => setMsg({ ...msg, [r.dietitianId]: "Recorded" }))
+                            .catch((err) => setMsg({ ...msg, [r.dietitianId]: errorText(err) }));
+                        }}
+                      >
+                        <input style={{ width: "7rem" }} inputMode="numeric" value={f.amount} aria-label="Amount" onChange={(e) => setForm({ ...form, [r.dietitianId]: { ...f, amount: e.target.value.replace(/\D/g, "") } })} />
+                        <input style={{ width: "9rem" }} value={f.reference} placeholder="Transfer ref" aria-label="Reference" onChange={(e) => setForm({ ...form, [r.dietitianId]: { ...f, reference: e.target.value } })} />
+                        <button className="btn btn-secondary btn-small">Save</button>
+                        {msg[r.dietitianId] && <span className="small muted">{msg[r.dietitianId]}</span>}
+                      </form>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

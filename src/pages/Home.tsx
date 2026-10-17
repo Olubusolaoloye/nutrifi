@@ -36,7 +36,7 @@ const POPULAR: Record<Cuisine, Array<{ name: string; emoji: string; meal: Meal; 
 
 export function Home() {
   const navigate = useNavigate();
-  const { profile, diary, water, plan, planPortions, latestWeightKg, addWater } = useStore();
+  const { profile, diary, water, plan, planPortions, latestWeightKg, dietitianTarget, addWater } = useStore();
   const [filter, setFilter] = useState<Meal | "All">("All");
   const [query, setQuery] = useState("");
   const [cuisine, setCuisine] = useState<Cuisine>("Nigerian");
@@ -45,7 +45,7 @@ export function Home() {
   const today = todayIso();
   const entries = diary.filter((e) => e.date === today);
   const totals = dailyTotals(entries);
-  const s = bodySummary(profile, latestWeightKg);
+  const s = bodySummary(profile, latestWeightKg, dietitianTarget);
   const waterMl = water[today] ?? 0;
   const cat = bmiCategory(s.bmi);
   const tip = ARTICLES[new Date().getDate() % ARTICLES.length];

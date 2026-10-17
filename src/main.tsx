@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { ConvexStoreProvider } from "./state/cloudStore";
+import { CloudInterventionsProvider, PreviewInterventionsProvider } from "./state/interventions";
 import { LocalStoreProvider } from "./state/store";
 import "./styles.css";
 
@@ -13,10 +14,17 @@ const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 function Providers({ children }: { children: ReactNode }) {
-  if (!convex) return <LocalStoreProvider>{children}</LocalStoreProvider>;
+  if (!convex)
+    return (
+      <LocalStoreProvider>
+        <PreviewInterventionsProvider>{children}</PreviewInterventionsProvider>
+      </LocalStoreProvider>
+    );
   return (
     <ConvexAuthProvider client={convex}>
-      <ConvexStoreProvider>{children}</ConvexStoreProvider>
+      <ConvexStoreProvider>
+        <CloudInterventionsProvider>{children}</CloudInterventionsProvider>
+      </ConvexStoreProvider>
     </ConvexAuthProvider>
   );
 }

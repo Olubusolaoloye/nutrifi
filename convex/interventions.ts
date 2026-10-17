@@ -1,0 +1,227 @@
+// Paid interventions: the catalogue, enrolling, payment confirmation and the member's programme view.
+import { ConvexError, v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
+import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { checkText, getProfile, requireUser } from "./helpers";
+import { intake } from "./validators";
+import { programmeById } from "../src/data/programmes";
+import { intakeError, splitPayment, type DietitianCard, type ThreadMessage } from "../src/lib/interventions";
+import { localParts } from "../src/lib/reminders";
+
+type Ctx = QueryCtx | MutationCtx;
+
+/** Today in Nigeria (the programme calendar runs on Lagos time). */
+export const lagosToday = () => localParts(Date.now(), 60).date;
+
+/** A dietitian who may take clients: verified, with the dietitian role. */
+export async function isVerifiedDietitian(ctx: Ctx, userId: Id<"users">) {
+  const p = await getProfile(ctx, userId);
+  return !!p && p.role === "dietitian" && p.verification === "verified";
+}
+
+export async function requireDietitian(ctx: Ctx): Promise<Id<"users">> {
+  const userId = await requireUser(ctx);
+  if (!(await isVerifiedDietitian(ctx, userId))) throw new ConvexError("Only verified dietitians can do this.");
+  return userId;
+}
+
+export async function dietitianCard(ctx: Ctx, dietitianId: Id<"users">): Promise<DietitianCard> {
+  const [profile, dp, done] = await Promise.all([
+    getProfile(ctx, dietitianId),
+    ctx.db.query("dietitianProfiles").withIndex("by_user", (q) => q.eq("userId", dietitianId)).unique(),
+    ctx.db.query("enrolments").withIndex("by_dietitian", (q) => q.eq("dietitianId", dietitianId)).collect(),
+  ]);
+  return {
+    id: dietitianId,
+    name: profile?.name ?? "Nutrifi dietitian",
+    bio: dp?.bio ?? "",
+    languages: dp?.languages ?? ["English"],
+    yearsExperience: dp?.yearsExperience ?? 0,
+    clientsHelped: done.filter((e) => e.status === "completed").length,
+  };
+}
+
+/** Load an enrolment the signed-in user takes part in, as member or as dietitian. */
+export async function enrolmentFor(ctx: Ctx, id: Id<"enrolments">, userId: Id<"users">, as: "member" | "dietitian" | "either" = "either") {
+  const normalized = ctx.db.normalizeId("enrolments", id);
+  const e = normalized && (await ctx.db.get(normalized));
+  const ok = !!e && ((as !== "dietitian" && e.memberId === userId) || (as !== "member" && e.dietitianId === userId));
+  if (!e || !ok) throw new ConvexError("Not found.");
+  return e;
+}
+
+export async function threadFor(ctx: Ctx, enrolmentId: Id<"enrolments">, viewerId: Id<"users">): Promise<ThreadMessage[]> {
+  const rows = await ctx.db.query("messages").withIndex("by_enrolment", (q) => q.eq("enrolmentId", enrolmentId)).collect();
+  const names = new Map<string, string>();
+  for (const id of new Set(rows.map((r) => r.senderId))) names.set(id, (await getProfile(ctx, id))?.name ?? "Nutrifi member");
+  return rows.map((m) => ({ id: m._id, fromMe: m.senderId === viewerId, senderName: names.get(m.senderId)!, text: m.text, sentAt: new Date(m.sentAt).toISOString() }));
+}
+
+export async function sideRows(ctx: Ctx, enrolmentId: Id<"enrolments">) {
+  const [adjuncts, checkIns] = await Promise.all([
+    ctx.db.query("adjuncts").withIndex("by_enrolment", (q) => q.eq("enrolmentId", enrolmentId)).collect(),
+    ctx.db.query("checkIns").withIndex("by_enrolment", (q) => q.eq("enrolmentId", enrolmentId)).collect(),
+  ]);
+  const approvers = new Map<string, string>();
+  for (const id of new Set(adjuncts.map((a) => a.approvedBy))) approvers.set(id, (await getProfile(ctx, id))?.name ?? "Your dietitian");
+  return {
+    adjuncts: adjuncts.map((a) => ({
+      id: a._id, name: a.name, dose: a.dose, timing: a.timing, reason: a.reason,
+      approvedBy: approvers.get(a.approvedBy)!, approvedAt: new Date(a.approvedAt).toISOString(),
+    })),
+    checkIns: checkIns
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((c) => ({ id: c._id, week: c.week, summary: c.summary, nextSteps: c.nextSteps, weightKg: c.weightKg, createdAt: new Date(c.createdAt).toISOString() })),
+  };
+}
+
+/** Public: programmes on offer and the verified dietitians offering them. */
+export const catalogue = query({
+  args: {},
+  handler: async (ctx) => {
+    const offerings = await ctx.db.query("offerings").withIndex("by_active", (q) => q.eq("active", true)).collect();
+    const cards = new Map<string, DietitianCard | null>();
+    const out = [];
+    for (const o of offerings) {
+      if (!cards.has(o.dietitianId)) cards.set(o.dietitianId, (await isVerifiedDietitian(ctx, o.dietitianId)) ? await dietitianCard(ctx, o.dietitianId) : null);
+      const dietitian = cards.get(o.dietitianId);
+      if (dietitian && programmeById(o.programmeId)) out.push({ id: o._id as string, programmeId: o.programmeId, priceNaira: o.priceNaira, dietitian });
+    }
+    return out;
+  },
+});
+
+/** Start enrolling: saves the intake and the price; payment comes next. */
+export const enrol = mutation({
+  args: { offeringId: v.id("offerings"), intake },
+  handler: async (ctx, args) => {
+    const memberId = await requireUser(ctx);
+    if (!(await getProfile(ctx, memberId))) throw new ConvexError("Please finish setting up your profile first.");
+    const offering = await ctx.db.get(args.offeringId);
+    if (!offering?.active || !(await isVerifiedDietitian(ctx, offering.dietitianId))) throw new ConvexError("This programme isn't available any more.");
+    if (offering.dietitianId === memberId) throw new ConvexError("You can't enrol on your own programme.");
+    const err = intakeError(args.intake);
+    if (err) throw new ConvexError(err);
+    if (args.intake.conditions.length > 5) throw new ConvexError("Too many conditions.");
+
+    const mine = await ctx.db.query("enrolments").withIndex("by_member", (q) => q.eq("memberId", memberId)).collect();
+    if (mine.some((e) => e.offeringId === offering._id && e.status === "active")) throw new ConvexError("You're already on this programme.");
+    const { fee } = splitPayment(offering.priceNaira);
+    const pending = mine.find((e) => e.offeringId === offering._id && e.status === "pending_payment");
+    const fields = { intake: args.intake, priceNaira: offering.priceNaira, feeNaira: fee };
+    if (pending) {
+      await ctx.db.patch(pending._id, fields);
+      return pending._id;
+    }
+    return ctx.db.insert("enrolments", {
+      memberId, dietitianId: offering.dietitianId, offeringId: offering._id, programmeId: offering.programmeId,
+      status: "pending_payment", createdAt: Date.now(), ...fields,
+    });
+  },
+});
+
+export const cancelPending = mutation({
+  args: { enrolmentId: v.id("enrolments") },
+  handler: async (ctx, { enrolmentId }) => {
+    const userId = await requireUser(ctx);
+    const e = await enrolmentFor(ctx, enrolmentId, userId, "member");
+    if (e.status !== "pending_payment") throw new ConvexError("Only unpaid enrolments can be cancelled here. Message your dietitian about refunds.");
+    await ctx.db.patch(e._id, { status: "cancelled" });
+  },
+});
+
+/** The member's programmes, with everything their dietitian has shared. */
+export const myEnrolments = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUser(ctx);
+    const rows = (await ctx.db.query("enrolments").withIndex("by_member", (q) => q.eq("memberId", userId)).collect()).filter((e) => e.status !== "cancelled");
+    const out = [];
+    for (const e of rows.sort((a, b) => b.createdAt - a.createdAt)) {
+      const messages = await threadFor(ctx, e._id, userId);
+      out.push({
+        id: e._id as string,
+        programmeId: e.programmeId,
+        priceNaira: e.priceNaira,
+        status: e.status,
+        createdAt: new Date(e.createdAt).toISOString(),
+        startDate: e.startDate,
+        dietitian: await dietitianCard(ctx, e.dietitianId),
+        target: e.target,
+        planWeekStart: e.planWeekStart,
+        ...(await sideRows(ctx, e._id)),
+        messages,
+        unread: messages.filter((m) => !m.fromMe && Date.parse(m.sentAt) > (e.memberReadAt ?? 0)).length,
+        demoPayment: !!e.demoPayment,
+      });
+    }
+    return out;
+  },
+});
+
+export const sendMessage = mutation({
+  args: { enrolmentId: v.id("enrolments"), text: v.string() },
+  handler: async (ctx, { enrolmentId, text }) => {
+    const userId = await requireUser(ctx);
+    const e = await enrolmentFor(ctx, enrolmentId, userId);
+    if (e.status !== "active") throw new ConvexError("Messages open once the programme is paid for and stay open while it runs.");
+    const clean = text.trim();
+    if (!clean) return;
+    checkText(clean, 2000, "Message");
+    await ctx.db.insert("messages", { enrolmentId: e._id, senderId: userId, text: clean, sentAt: Date.now() });
+    await ctx.db.patch(e._id, e.memberId === userId ? { memberReadAt: Date.now() } : { dietitianReadAt: Date.now() });
+  },
+});
+
+export const markRead = mutation({
+  args: { enrolmentId: v.id("enrolments") },
+  handler: async (ctx, { enrolmentId }) => {
+    const userId = await requireUser(ctx);
+    const e = await enrolmentFor(ctx, enrolmentId, userId);
+    await ctx.db.patch(e._id, e.memberId === userId ? { memberReadAt: Date.now() } : { dietitianReadAt: Date.now() });
+  },
+});
+
+/* ---------- Payments (called from payments.ts and http.ts) ---------- */
+
+export const paymentInfo = internalQuery({
+  args: { enrolmentId: v.id("enrolments"), userId: v.id("users") },
+  handler: async (ctx, { enrolmentId, userId }) => {
+    const e = await enrolmentFor(ctx, enrolmentId, userId, "member");
+    const user = await ctx.db.get(userId);
+    return { status: e.status, priceNaira: e.priceNaira, programmeId: e.programmeId, email: user?.email ?? null };
+  },
+});
+
+export const setPaymentRef = internalMutation({
+  args: { enrolmentId: v.id("enrolments"), reference: v.string() },
+  handler: async (ctx, { enrolmentId, reference }) => {
+    await ctx.db.patch(enrolmentId, { paymentRef: reference });
+  },
+});
+
+/**
+ * Activate an enrolment once Paystack confirms the charge. Safe to call more than once
+ * (the webhook and the redirect check both call it). The amount must match the price exactly.
+ */
+export const markPaid = internalMutation({
+  args: { reference: v.string(), amountKobo: v.number(), demo: v.optional(v.boolean()) },
+  handler: async (ctx, { reference, amountKobo, demo }): Promise<"activated" | "already_active" | "unknown" | "amount_mismatch"> => {
+    const e: Doc<"enrolments"> | null = await ctx.db.query("enrolments").withIndex("by_paymentRef", (q) => q.eq("paymentRef", reference)).unique();
+    if (!e) return "unknown";
+    if (e.status === "active" || e.status === "completed") return "already_active";
+    if (amountKobo !== e.priceNaira * 100) {
+      console.error("payment amount mismatch", reference, amountKobo, e.priceNaira);
+      return "amount_mismatch";
+    }
+    await ctx.db.patch(e._id, { status: "active", paidAt: Date.now(), startDate: lagosToday(), demoPayment: demo || undefined });
+    return "activated";
+  },
+});
+
+/** The active dietitian-set target, if any (shown to the member instead of the automatic one). */
+export async function activeTarget(ctx: Ctx, memberId: Id<"users">) {
+  const rows = await ctx.db.query("enrolments").withIndex("by_member", (q) => q.eq("memberId", memberId)).collect();
+  const withTarget = rows.filter((e) => e.status === "active" && e.target).sort((a, b) => b.target!.setAt.localeCompare(a.target!.setAt));
+  return withTarget[0]?.target ?? null;
+}

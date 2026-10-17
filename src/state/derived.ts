@@ -26,12 +26,15 @@ export interface BodySummary {
   waterTargetMl: number;
 }
 
-export function bodySummary(profile: Profile, weightKg: number): BodySummary {
+/** A dietitian-set target (on an active programme) replaces the automatic one, even for people with conditions. */
+export function bodySummary(profile: Profile, weightKg: number, dietitianTarget?: { kcal: number } | null): BodySummary {
   const ageYears = ageFromBirthDate(profile.birthDate);
   return {
     ageYears,
     bmi: calculateBmi(weightKg, profile.heightCm),
-    target: consumerDailyTarget({
+    target: dietitianTarget
+      ? { kind: "target", kcal: dietitianTarget.kcal, maintenanceKcal: dietitianTarget.kcal, source: "dietitian", note: "Set by your dietitian." }
+      : consumerDailyTarget({
       sex: profile.sex,
       ageYears,
       weightKg,

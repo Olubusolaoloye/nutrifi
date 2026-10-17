@@ -84,13 +84,13 @@ function PrefsSheet({ prefs, onSave, onClose }: { prefs: PlanPrefs; onSave: (p: 
 }
 
 export function MealPlan() {
-  const { profile, latestWeightKg, plan, planPortions, planPrefs, setPlanSlot, replacePlan, updatePlanPrefs } = useStore();
+  const { profile, latestWeightKg, dietitianTarget, plan, planPortions, planPrefs, setPlanSlot, replacePlan, updatePlanPrefs } = useStore();
   const [anchor, setAnchor] = useState(todayIso());
   const [editing, setEditing] = useState<{ date: string; meal: Meal } | null>(null);
   const [showPrefs, setShowPrefs] = useState(false);
   const dates = weekDates(anchor);
   const today = todayIso();
-  const summary = profile && latestWeightKg !== null ? bodySummary(profile, latestWeightKg) : null;
+  const summary = profile && latestWeightKg !== null ? bodySummary(profile, latestWeightKg, dietitianTarget) : null;
   const target = summary?.target.kind === "target" ? summary.target.kcal : null;
   const targets = target ? mealTargets(target) : null;
 
@@ -117,7 +117,7 @@ export function MealPlan() {
 
   return (
     <div className="page page-wide">
-      <PageHeader title="Meal plan" subtitle={target ? `Sized to your daily target of about ${fmt(target)} kcal` : "Plan your week, then shop for it in one tap"}>
+      <PageHeader title="Meal plan" subtitle={target ? `Sized to ${dietitianTarget ? "the target your dietitian set" : "your daily target"} of about ${fmt(target)} kcal` : "Plan your week, then shop for it in one tap"}>
         <Link to={`/grocery?week=${dates[0]}`} className="btn btn-secondary"><ShoppingBasket size={18} /> Grocery list</Link>
         <Link to="/recipes" className="btn btn-primary"><Plus size={18} /> Browse recipes</Link>
       </PageHeader>

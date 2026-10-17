@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query } from "./_generated/server";
 import { getProfile, isAdmin } from "./helpers";
+import { activeTarget } from "./interventions";
 
 /**
  * Everything the app needs for the signed-in user, in one reactive query.
@@ -42,6 +43,8 @@ export const snapshot = query({
       grocery,
       planPrefs: settings?.planPrefs ?? null,
       reminders: settings?.reminders ?? null,
+      /** Set by the member's dietitian on an active programme; replaces the automatic target. */
+      dietitianTarget: await activeTarget(ctx, userId),
     };
   },
 });

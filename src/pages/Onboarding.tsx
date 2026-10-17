@@ -241,7 +241,7 @@ function Results({ profile, weightKg }: { profile: Profile; weightKg: number }) 
           <p>Fill about half your plate with vegetables and soup, a quarter with starch (rice, swallow, yam) and a quarter with protein (fish, beans, meat, eggs).</p>
         </div>
       ) : (
-        <DietitianCard reason={s.target.reason} />
+        <DietitianCard reason={s.target.reason} showLink={false} />
       )}
       <div className="card">
         <div className="stat">

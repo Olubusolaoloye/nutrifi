@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { ActivityLevel, Condition, Goal, Sex } from "../lib/nutrition";
 import { DEFAULT_PLAN_PREFS, type PlanPrefs } from "../lib/planner";
 import { DEFAULT_REMINDERS, type ReminderSettings } from "../lib/reminders";
+import type { DietitianTarget } from "../lib/interventions";
 
 export type Role = "consumer" | "student" | "dietitian";
 export type Verification = "none" | "pending" | "verified" | "rejected";
@@ -201,6 +202,8 @@ export interface Store extends PersistedState {
   /** Latest verification request (cloud mode). */
   verificationInfo: VerificationInfo | null;
   latestWeightKg: number | null;
+  /** Target set by the member's dietitian on an active programme (cloud mode). */
+  dietitianTarget: DietitianTarget | null;
   completeOnboarding: (profile: Profile, weightKg: number, credential?: string) => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => void;
   addDiaryEntries: (entries: Omit<DiaryEntry, "id">[]) => void;
@@ -256,6 +259,7 @@ export function LocalStoreProvider({ children }: { children: ReactNode }) {
       account: null,
       verificationInfo: null,
       latestWeightKg: latest ? latest.weightKg : null,
+      dietitianTarget: null,
       completeOnboarding: async (profile, weightKg) =>
         setState((s) => ({ ...s, profile, weights: [{ date: todayIso(), weightKg }] })),
       updateProfile: (patch) => setState((s) => (s.profile ? { ...s, profile: { ...s.profile, ...patch } } : s)),

@@ -182,7 +182,7 @@ export function Disclaimer() {
   );
 }
 
-export function DietitianCard({ reason }: { reason: "condition" | "under_18" }) {
+export function DietitianCard({ reason, showLink = true }: { reason: "condition" | "under_18"; showLink?: boolean }) {
   return (
     <div className="card card-warm">
       <h2>Your target should be set by a dietitian</h2>
@@ -191,9 +191,11 @@ export function DietitianCard({ reason }: { reason: "condition" | "under_18" }) 
           ? "Because of the health condition you told us about, a dietitian should set your daily target and plan with you."
           : "For people under 18, energy needs change with growth, so a dietitian should set your target."}
       </p>
-      <button className="btn btn-primary" disabled>
-        Talk to a dietitian (coming soon)
-      </button>
+      {showLink ? (
+        <Link to="/programmes" className="btn btn-primary">Find a dietitian</Link>
+      ) : (
+        <p className="small"><strong>Next:</strong> once you've finished, choose a verified dietitian under <strong>Programmes</strong>.</p>
+      )}
       <p className="muted small">You can still log your meals, water and weight.</p>
     </div>
   );

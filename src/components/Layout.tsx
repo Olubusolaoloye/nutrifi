@@ -6,6 +6,7 @@ import {
   CalendarRange,
   ChefHat,
   Dumbbell,
+  HeartPulse,
   LayoutDashboard,
   MessageCircle,
   NotebookPen,
@@ -14,6 +15,7 @@ import {
   ShoppingBasket,
   TrendingUp,
   UserRound,
+  Users,
   WifiOff,
   type LucideIcon,
 } from "lucide-react";
@@ -62,6 +64,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   { to: "/home", label: "Dashboard", icon: LayoutDashboard },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/messages", label: "Messages", icon: MessageCircle, badge: 2 },
+  { to: "/programmes", label: "Programmes", icon: HeartPulse },
   { to: "/recipes", label: "Healthy menu", icon: ChefHat },
   { to: "/plan", label: "Meal plan", icon: CalendarRange },
   { to: "/grocery", label: "Grocery list", icon: ShoppingBasket, sub: true },
@@ -99,6 +102,11 @@ export function Layout() {
             {n.badge ? <span className="nav-badge" aria-label={`${n.badge} unread`}>{n.badge}</span> : null}
           </NavLink>
         ))}
+        {pro && profile?.role === "dietitian" && (
+          <NavLink to="/clients" className={cls()}>
+            <span className="nav-icon"><Users size={19} /></span><span className="grow">Clients</span><span className="nav-pro">PRO</span>
+          </NavLink>
+        )}
         {pro && (
           <NavLink to="/workbench" className={cls()}>
             <span className="nav-icon"><Calculator size={19} /></span><span className="grow">Workbench</span><span className="nav-pro">PRO</span>
@@ -106,7 +114,7 @@ export function Layout() {
         )}
         {account?.isAdmin && (
           <NavLink to="/admin" className={cls()}>
-            <span className="nav-icon"><ShieldCheck size={19} /></span><span className="grow">Verification queue</span>
+            <span className="nav-icon"><ShieldCheck size={19} /></span><span className="grow">Admin</span>
           </NavLink>
         )}
         <NavLink to="/me" className={cls()}>
@@ -116,7 +124,7 @@ export function Layout() {
         <div className="nav-promo promo">
           <div className="promo-art" aria-hidden>🥗</div>
           <p>Get a personalised meal plan from a <strong>verified dietitian</strong>.</p>
-          <button className="btn btn-small" disabled>Coming soon</button>
+          <Link to="/programmes" className="btn btn-small">Find a dietitian</Link>
         </div>
       </nav>
 
