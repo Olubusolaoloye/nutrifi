@@ -210,3 +210,15 @@ export const people = query({
     );
   },
 });
+
+/** The audit log: every admin action, newest first, with who did it. */
+export const log = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const rows = await ctx.db.query("adminLog").order("desc").take(200);
+    const emails = new Map<string, string>();
+    for (const id of new Set(rows.map((r) => r.adminId))) emails.set(id, (await ctx.db.get(id))?.email ?? "deleted account");
+    return rows.map((r) => ({ id: r._id, action: r.action, detail: r.detail, by: emails.get(r.adminId)!, at: new Date(r.at).toISOString() }));
+  },
+});

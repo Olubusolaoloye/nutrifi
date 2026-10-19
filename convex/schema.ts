@@ -206,6 +206,15 @@ export default defineSchema({
     sentAt: v.number(),
   }).index("by_conversation", ["conversationId", "sentAt"]),
 
+  /** Every admin action (approvals, rejections, payouts): who did what, to whom, and when. Never edited or deleted by the app. */
+  adminLog: defineTable({
+    adminId: v.id("users"),
+    action: v.union(v.literal("verification_approved"), v.literal("verification_rejected"), v.literal("payout_recorded")),
+    subjectId: v.optional(v.id("users")),
+    detail: v.string(),
+    at: v.number(),
+  }),
+
   /** Payouts to dietitians, recorded by admins after a bank transfer. */
   payouts: defineTable({
     dietitianId: v.id("users"),

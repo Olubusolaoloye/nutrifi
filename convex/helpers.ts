@@ -55,3 +55,10 @@ export async function ownRow<T extends "diary" | "events" | "exercises">(ctx: Mu
   if (!row || row.userId !== userId) throw new ConvexError("Not found.");
   return row;
 }
+
+export type AdminAction = "verification_approved" | "verification_rejected" | "payout_recorded";
+
+/** Records an admin action in the audit log. Call it in the same mutation as the action, so both happen or neither does. */
+export async function logAdminAction(ctx: MutationCtx, adminId: Id<"users">, action: AdminAction, subjectId: Id<"users"> | undefined, detail: string) {
+  await ctx.db.insert("adminLog", { adminId, action, subjectId, detail: detail.slice(0, 300), at: Date.now() });
+}

@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import {
-  Activity, BadgeCheck, Banknote, Bell, CalendarRange, HeartPulse, MessageCircle, NotebookPen, ShieldAlert, UserPlus, Users,
+  Activity, BadgeCheck, Banknote, Bell, CalendarRange, CircleCheck, CircleX, HeartPulse, MessageCircle, NotebookPen, ShieldAlert, UserPlus, Users,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -15,6 +15,7 @@ const TABS = [
   { id: "activity", label: "Activity" },
   { id: "verification", label: "Verification" },
   { id: "payouts", label: "Payouts" },
+  { id: "log", label: "Audit log" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
@@ -52,6 +53,7 @@ export function Admin() {
       {tab === "activity" && <Feed />}
       {tab === "verification" && <VerificationQueue />}
       {tab === "payouts" && <Payouts />}
+      {tab === "log" && <AuditLog />}
     </div>
   );
 }
@@ -275,6 +277,42 @@ function Feed() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+const LOG_LABEL = {
+  verification_approved: { text: "Approved", icon: <CircleCheck size={16} /> },
+  verification_rejected: { text: "Rejected", icon: <CircleX size={16} /> },
+  payout_recorded: { text: "Payout", icon: <Banknote size={16} /> },
+} as const;
+
+/** Every admin action, newest first. Entries can't be edited or deleted from the app. */
+function AuditLog() {
+  const rows = useQuery(api.admin.log);
+  if (rows === undefined) return <p className="muted">Loading…</p>;
+  return (
+    <section>
+      <p className="small muted">Every approval, rejection and payout, with the admin who did it. Entries can't be changed or removed from the app.</p>
+      {rows.length === 0 ? (
+        <div className="card empty-state"><h2>No admin actions yet</h2><p className="muted">They'll be listed here as admins approve, reject and pay out.</p></div>
+      ) : (
+        <div className="card table-wrap">
+          <table className="table data-table">
+            <thead><tr><th>When</th><th>Action</th><th>Details</th><th>By</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="small" title={new Date(r.at).toLocaleString("en-NG")}>{new Date(r.at).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</td>
+                  <td><span className={`admin-log-action log-${r.action}`}>{LOG_LABEL[r.action].icon} {LOG_LABEL[r.action].text}</span></td>
+                  <td className="small">{r.detail}</td>
+                  <td className="small muted">{r.by}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

@@ -594,3 +594,35 @@ describe("admin dashboard", () => {
     expect(all.find((p) => p.email === "half@example.com")).toMatchObject({ name: null, role: null });
   });
 });
+
+describe("admin audit log", () => {
+  it("records approvals, rejections and payouts with who did them, and only admins can read it", async () => {
+    const t = convexTest(schema, modules);
+    const student = await signedIn(t, "tunde@unn.edu.ng");
+    const admin = await signedIn(t, "admin@nutrintel.ng");
+    await student.as.mutation(api.profile.create, { ...PROFILE, name: "Tunde", role: "student", weightKg: 72, credential: "UNN 2022/1234" });
+    const [req] = await admin.as.query(api.verification.listPending, {});
+    await admin.as.mutation(api.verification.review, { id: req._id, decision: "rejected", note: "Matric not found" });
+    await student.as.mutation(api.verification.submit, { credential: "UNN 2022/12345" });
+    const [again] = await admin.as.query(api.verification.listPending, {});
+    await admin.as.mutation(api.verification.review, { id: again._id, decision: "verified" });
+
+    const log = await admin.as.query(api.admin.log, {});
+    expect(log.map((l) => [l.action, l.by])).toEqual([
+      ["verification_approved", "admin@nutrintel.ng"],
+      ["verification_rejected", "admin@nutrintel.ng"],
+    ]);
+    expect(log[1].detail).toBe("Tunde as a student (UNN 2022/1234) · note: Matric not found");
+    await expect(student.as.query(api.admin.log, {})).rejects.toThrow(/Admins only/);
+  });
+
+  it("logs a payout only when it's recorded", async () => {
+    const { t, d, enrolmentId } = await paidSetup();
+    // Make the demo enrolment a real payment so the dietitian is owed money.
+    await t.run((ctx) => ctx.db.patch(enrolmentId, { demoPayment: undefined }));
+    const admin = await signedIn(t, "admin@nutrintel.ng");
+    await expect(admin.as.mutation(api.clients.recordPayout, { dietitianId: d.userId, amountNaira: 10_000_000, reference: "TRF0" })).rejects.toThrow(/balance/);
+    await admin.as.mutation(api.clients.recordPayout, { dietitianId: d.userId, amountNaira: 1000, reference: "TRF1" });
+    expect(await admin.as.query(api.admin.log, {})).toMatchObject([{ action: "payout_recorded", detail: "₦1,000 to Dr Funke · ref TRF1", by: "admin@nutrintel.ng" }]);
+  });
+});

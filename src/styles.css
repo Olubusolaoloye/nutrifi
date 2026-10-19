@@ -1300,3 +1300,6 @@ fieldset.field { border: 0; padding: 0; min-width: 0; }
 .admin-feed-icon.kind-payment, .admin-feed-icon.kind-payout { background: var(--lime-soft); color: var(--brand-text); }
 .admin-feed-icon.kind-verification { background: var(--tag-lunch-bg); color: var(--tag-lunch); }
 .admin-chart-head .link-btn { flex-shrink: 0; white-space: nowrap; }
+.admin-log-action { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+.admin-log-action.log-verification_approved { color: var(--brand-text); }
+.admin-log-action.log-verification_rejected { color: var(--danger); }

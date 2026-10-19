@@ -18,7 +18,7 @@ Nutrintel runs in two modes:
 | `crons.ts` | Checks for due reminders every 5 minutes |
 | `interventions.ts` | Paid programmes: catalogue of verified dietitians' offerings, enrolment with intake and consent, member programme view, messages, payment confirmation (`markPaid`) |
 | `payments.ts` | Paystack checkout (`startPayment`) and verification on return (`verifyPayment`) |
-| `admin.ts` | Admin portal (admins only): `overview` (counts, 30-day sign-up and active-member trends, programmes and revenue, messaging and reminders), `feed` (latest sign-ups, verifications, enrolments, payments, payouts, waitlist, new chats) and `people` (search by name or email, last active). No message text or food logs |
+| `admin.ts` | Admin portal (admins only): `overview` (counts, 30-day sign-up and active-member trends, programmes and revenue, messaging and reminders), `feed` (latest sign-ups, verifications, enrolments, payments, payouts, waitlist, new chats) `people` (search by name or email, last active) and `log` (the audit log). No message text or food logs |
 | `social.ts` | Member-to-member chats: start a chat by email (they need a profile), send text or a week of the meal plan, inbox with unread counts, mark read, block. Only the two people in a chat can read it; deleting your data deletes your chats |
 | `clients.ts` | Dietitian tools: profile and payout account, offerings and prices, client list, client detail, set target, send plan, supplements, check-ins, complete; admin payouts |
 | `http.ts` | Convex Auth routes and the Paystack webhook (`/paystack/webhook`, signature-checked) |
@@ -28,10 +28,10 @@ Nutrintel runs in two modes:
 | `verification.ts` | Upload a document, submit for review, admin review queue and approve/reject |
 | `importLocal.ts` | One-time import of data saved on a device before accounts |
 | `waitlist.ts` | Public landing-page waitlist |
-| `helpers.ts`, `validators.ts` | Auth checks, ownership checks, input validation |
+| `helpers.ts`, `validators.ts` | Auth checks, ownership checks, input validation, `logAdminAction` (writes the admin audit log in the same transaction as the action) |
 | `backend.test.ts` | Tests (run with `npm test`) |
 
-Every function checks who is signed in and only touches that user's rows. Only admins (emails in `ADMIN_EMAILS`) can approve verification.
+Every function checks who is signed in and only touches that user's rows. Only admins (emails in `ADMIN_EMAILS`) can approve verification. Every admin query checks this on the server, and every admin action (approve, reject, payout) is written to the `adminLog` audit table.
 
 ## One-time setup (on your computer)
 
