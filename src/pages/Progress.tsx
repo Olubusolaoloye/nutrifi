@@ -1,12 +1,22 @@
-import { useState } from "react";
+import { Share2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { ShareSheet } from "../components/ShareSheet";
 import { Card, PageHeader } from "../components/ui";
 import { BMI_CATEGORY_LABEL, bmiCategory, calculateBmi } from "../lib/nutrition";
-import { fmt } from "../state/derived";
+import { journeyStats } from "../lib/share";
+import { bodySummary, fmt } from "../state/derived";
 import { todayIso, useStore } from "../state/store";
 
 export function Progress() {
-  const { profile, weights, logWeight } = useStore();
+  const { profile, weights, logWeight, diary, latestWeightKg, dietitianTarget } = useStore();
   const [input, setInput] = useState("");
+  const [params, setParams] = useSearchParams();
+  const sharing = params.get("share") === "1";
+  const stats = useMemo(() => {
+    const s = profile && latestWeightKg !== null ? bodySummary(profile, latestWeightKg, dietitianTarget) : null;
+    return journeyStats(diary, weights, todayIso(), s?.target.kind === "target" ? s.target.kcal : null);
+  }, [profile, latestWeightKg, dietitianTarget, diary, weights]);
   if (!profile) return null;
 
   const value = Number(input);
@@ -14,7 +24,12 @@ export function Progress() {
 
   return (
     <div className="page">
-      <PageHeader title="Progress" subtitle="Your weight and BMI over time" />
+      <PageHeader title="Progress" subtitle="Your weight and BMI over time">
+        <button className="btn btn-secondary" onClick={() => setParams({ share: "1" }, { replace: true })}><Share2 size={18} /> Share my journey</button>
+      </PageHeader>
+      {sharing && (
+        <ShareSheet title="Share your journey" what={{ kind: "journey", stats }} onClose={() => setParams({}, { replace: true })} />
+      )}
 
       <Card title="Log today's weight">
         <form

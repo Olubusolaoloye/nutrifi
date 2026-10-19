@@ -18,6 +18,7 @@ Nutrintel runs in two modes:
 | `crons.ts` | Checks for due reminders every 5 minutes |
 | `interventions.ts` | Paid programmes: catalogue of verified dietitians' offerings, enrolment with intake and consent, member programme view, messages, payment confirmation (`markPaid`) |
 | `payments.ts` | Paystack checkout (`startPayment`) and verification on return (`verifyPayment`) |
+| `social.ts` | Member-to-member chats: start a chat by email (they need a profile), send text or a week of the meal plan, inbox with unread counts, mark read, block. Only the two people in a chat can read it; deleting your data deletes your chats |
 | `clients.ts` | Dietitian tools: profile and payout account, offerings and prices, client list, client detail, set target, send plan, supplements, check-ins, complete; admin payouts |
 | `http.ts` | Convex Auth routes and the Paystack webhook (`/paystack/webhook`, signature-checked) |
 | `me.ts` | `snapshot` — one reactive query with everything the signed-in user needs |

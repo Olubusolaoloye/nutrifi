@@ -473,3 +473,80 @@ describe("client tools", () => {
     expect(detail.intake.medications).toBe("");
   });
 });
+
+describe("member messages", () => {
+  async function member(t: ReturnType<typeof convexTest>, email: string, name: string) {
+    const m = await signedIn(t, email);
+    await m.as.mutation(api.profile.create, { ...PROFILE, name, role: "consumer", weightKg: 70 });
+    return m;
+  }
+  const PLAN = { title: "Week of 20 Oct", items: [{ day: 0, meal: "Breakfast" as const, recipeId: "akara-pap" }, { day: 2, meal: "Dinner" as const, recipeId: "egusi-eba", portion: 1.5 }] };
+
+  it("finds a member by email and keeps one chat per pair", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await member(t, "ada@example.com", "Ada");
+    const bisi = await member(t, "bisi@example.com", "Bisi");
+    const id = await ada.as.mutation(api.social.start, { email: " Bisi@Example.com " });
+    expect(await bisi.as.mutation(api.social.start, { email: "ada@example.com" })).toBe(id);
+    await expect(ada.as.mutation(api.social.start, { email: "nobody@example.com" })).rejects.toThrow(/couldn't find/);
+    await expect(ada.as.mutation(api.social.start, { email: "ada@example.com" })).rejects.toThrow(/your own email/);
+    // Signed up but never finished the profile: treated as not found.
+    await signedIn(t, "half@example.com");
+    await expect(ada.as.mutation(api.social.start, { email: "half@example.com" })).rejects.toThrow(/couldn't find/);
+  });
+
+  it("sends text and a meal plan, counts unread and marks read", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await member(t, "ada@example.com", "Ada");
+    const bisi = await member(t, "bisi@example.com", "Bisi");
+    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    await ada.as.mutation(api.social.send, { conversationId: id, text: "Try my plan!" });
+    await ada.as.mutation(api.social.send, { conversationId: id, text: "", plan: PLAN });
+
+    const inbox = (await bisi.as.query(api.social.inbox, {}))!;
+    expect(inbox).toMatchObject([{ id, name: "Ada", unread: 2, lastText: "📅 Week of 20 Oct", lastFromMe: false }]);
+    const th = await bisi.as.query(api.social.thread, { conversationId: id });
+    expect(th.name).toBe("Ada");
+    expect(th.messages.map((m) => [m.fromMe, m.text, m.plan?.items.length ?? 0])).toEqual([[false, "Try my plan!", 0], [false, "", 2]]);
+    await bisi.as.mutation(api.social.markRead, { conversationId: id });
+    expect((await bisi.as.query(api.social.inbox, {}))![0].unread).toBe(0);
+    expect((await ada.as.query(api.social.inbox, {}))![0]).toMatchObject({ name: "Bisi", unread: 0, lastFromMe: true });
+  });
+
+  it("keeps chats private and checks shared plans", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await member(t, "ada@example.com", "Ada");
+    await member(t, "bisi@example.com", "Bisi");
+    const eve = await member(t, "eve@example.com", "Eve");
+    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    await expect(eve.as.query(api.social.thread, { conversationId: id })).rejects.toThrow(/Not found/);
+    await expect(eve.as.mutation(api.social.send, { conversationId: id, text: "hi" })).rejects.toThrow(/Not found/);
+    await expect(ada.as.mutation(api.social.send, { conversationId: id, text: "", plan: { title: "x", items: [{ day: 7, meal: "Lunch", recipeId: "moimoi" }] } })).rejects.toThrow(/Plan day/);
+    await expect(ada.as.mutation(api.social.send, { conversationId: id, text: "x".repeat(2001) })).rejects.toThrow(/too long/);
+  });
+
+  it("blocking stops messages both ways until the blocker unblocks", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await member(t, "ada@example.com", "Ada");
+    const bisi = await member(t, "bisi@example.com", "Bisi");
+    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    await bisi.as.mutation(api.social.setBlocked, { conversationId: id, blocked: true });
+    await expect(ada.as.mutation(api.social.send, { conversationId: id, text: "hello?" })).rejects.toThrow(/can't send/);
+    await expect(bisi.as.mutation(api.social.send, { conversationId: id, text: "hi" })).rejects.toThrow(/can't send/);
+    await ada.as.mutation(api.social.setBlocked, { conversationId: id, blocked: false });
+    expect((await ada.as.query(api.social.thread, { conversationId: id })).blocked).toBe(true);
+    await bisi.as.mutation(api.social.setBlocked, { conversationId: id, blocked: false });
+    await ada.as.mutation(api.social.send, { conversationId: id, text: "hello again" });
+  });
+
+  it("deleting your data removes your chats for both people", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await member(t, "ada@example.com", "Ada");
+    const bisi = await member(t, "bisi@example.com", "Bisi");
+    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    await ada.as.mutation(api.social.send, { conversationId: id, text: "hi" });
+    await ada.as.mutation(api.data.deleteMyData, {});
+    expect(await bisi.as.query(api.social.inbox, {})).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query("directMessages").collect())).toEqual([]);
+  });
+});

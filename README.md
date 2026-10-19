@@ -38,7 +38,8 @@ npm run build      # production build in dist/
 | Calendar of planned meals, activities and appointments | `src/pages/Calendar.tsx` |
 | Exercise log with calories from MET values | `src/pages/Exercises.tsx`, `src/lib/nutrition/activity.ts` |
 | Health insights (featured, popular, tags, related articles) | `src/pages/Learn.tsx`, `src/data/articles.ts` |
-| Messages (preview with sample conversations) | `src/pages/Messages.tsx` |
+| Messages between members (with an account): chat by email, send a week of your meal plan that a friend adds to their own plan in one tap, block | `src/pages/Messages.tsx`, `convex/social.ts` |
+| Share your meal plan or health journey: WhatsApp text, a story-sized image for Instagram / WhatsApp Status (phone share menu), save image, copy text, or send to a Nutrintel friend. Weight is only shared if you switch it on | `src/components/ShareSheet.tsx`, `src/lib/share.ts`, `src/lib/shareImage.ts` |
 
 **Hybrid rule:** consumers see one simple daily target. People who report a medical condition, and anyone under 18, are sent to a dietitian instead of getting a target. Only verified students and dietitians can use the full Workbench.
 
@@ -53,6 +54,6 @@ verification is simulated with a "Demo: approve my verification" button on the M
 - People with a medical condition, and under-18s, get a general week with standard portions instead of a personal plan; a dietitian should set theirs.
 - Push and WhatsApp reminders need provider keys (see `BACKEND.md`). Without an account, reminders only show while the app is open.
 - Without accounts, Programmes and the Clients tools run as a preview with sample (fictional) dietitians and clients; no payment is taken.
-- Messaging is a preview with sample conversations; it launches with paid interventions.
+- Messaging needs an account; without one, sharing to WhatsApp and Instagram still works.
 - Food photos come from Wikimedia Commons (public domain / Creative Commons) and are credited on the Photo credits page (`/credits`); a dish falls back to its emoji if its photo can't load.
 - Food values, recipes, ₦ grocery prices and articles are **sample placeholders, not for clinical use**. They'll be replaced with the West African / Nigerian food composition tables and articles reviewed by dietitians.

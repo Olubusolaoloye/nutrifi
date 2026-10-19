@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { checkDate, checkRange, checkText, getProfile, ownRow, requireUser } from "./helpers";
 import { diaryFields, eventFields, exerciseFields, isoDate, meal, noteFields, noteSlot } from "./validators";
+import { deleteConversationsOf } from "./social";
 
 export const addDiaryEntries = mutation({
   args: { entries: v.array(v.object(diaryFields)) },
@@ -226,6 +227,8 @@ export const deleteMyData = mutation({
         target: undefined,
       });
     }
+    // Member chats: the whole conversation goes, for both people.
+    await deleteConversationsOf(ctx, userId);
     // A dietitian's own listing.
     for (const r of await ctx.db.query("offerings").withIndex("by_dietitian", (q) => q.eq("dietitianId", userId)).collect()) await ctx.db.patch(r._id, { active: false });
     for (const r of await ctx.db.query("dietitianProfiles").withIndex("by_user", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(r._id);

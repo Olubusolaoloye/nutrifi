@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { canUseWorkbench, useStore } from "../state/store";
 import { useLocalReminders } from "../state/useLocalReminders";
+import { CloudUnreadBadge } from "./Social";
 
 function useOnline() {
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -63,7 +64,7 @@ export interface NavEntry {
 export const NAV_ENTRIES: NavEntry[] = [
   { to: "/home", label: "Dashboard", icon: LayoutDashboard },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
-  { to: "/messages", label: "Messages", icon: MessageCircle, badge: 2 },
+  { to: "/messages", label: "Messages", icon: MessageCircle },
   { to: "/programmes", label: "Programmes", icon: HeartPulse },
   { to: "/recipes", label: "Healthy menu", icon: ChefHat },
   { to: "/plan", label: "Meal plan", icon: CalendarRange },
@@ -84,7 +85,7 @@ const MOBILE_TABS: NavEntry[] = [
 ];
 
 export function Layout() {
-  const { profile, account } = useStore();
+  const { profile, account, mode } = useStore();
   const online = useOnline();
   useLocalReminders();
   const pro = canUseWorkbench(profile);
@@ -100,6 +101,7 @@ export function Layout() {
             <span className="nav-icon"><n.icon size={19} /></span>
             <span className="grow">{n.label}</span>
             {n.badge ? <span className="nav-badge" aria-label={`${n.badge} unread`}>{n.badge}</span> : null}
+            {n.to === "/messages" && mode === "cloud" && <CloudUnreadBadge />}
           </NavLink>
         ))}
         {pro && profile?.role === "dietitian" && (

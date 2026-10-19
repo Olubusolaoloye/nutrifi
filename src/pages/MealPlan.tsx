@@ -1,11 +1,14 @@
-import { ArrowLeftRight, ChevronLeft, ChevronRight, FileUp, Minus, Plus, ShoppingBasket, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, ChevronRight, FileUp, Minus, Share2, Plus, ShoppingBasket, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { CsvImportSheet, inBatches } from "../components/CsvImport";
+import { ShareSheet } from "../components/ShareSheet";
+import { CloudSendToFriend } from "../components/Social";
 import { PageHeader, SampleNotice, Sheet, Thumb } from "../components/ui";
 import { CUISINES, type Cuisine } from "../data/foods";
 import { ALLERGENS, DIETS, RECIPES, costPerServing, fitsDiet, recipeAllergens, recipeById, type Recipe } from "../data/recipes";
 import { parsePlanCsv, planTemplate } from "../lib/csvImport";
+import { planSnapshot } from "../lib/share";
 import { fitPortion, mealTargets, personalWeekPlan, portionLabel, swapOptions, type PlanPrefs } from "../lib/planner";
 import { bodySummary, fmt } from "../state/derived";
 import { portionOf, shiftDate, todayIso, useStore, weekDates, type Meal } from "../state/store";
@@ -86,7 +89,10 @@ function PrefsSheet({ prefs, onSave, onClose }: { prefs: PlanPrefs; onSave: (p: 
 }
 
 export function MealPlan() {
-  const { profile, latestWeightKg, dietitianTarget, plan, planPortions, planPrefs, setPlanSlot, replacePlan, updatePlanPrefs } = useStore();
+  const { mode, profile, latestWeightKg, dietitianTarget, plan, planPortions, planPrefs, setPlanSlot, replacePlan, updatePlanPrefs } = useStore();
+  const [params, setParams] = useSearchParams();
+  const sharing = params.get("share") === "1";
+  const setSharing = (on: boolean) => setParams(on ? { share: "1" } : {}, { replace: true });
   const [anchor, setAnchor] = useState(todayIso());
   const [editing, setEditing] = useState<{ date: string; meal: Meal } | null>(null);
   const [showPrefs, setShowPrefs] = useState(false);
@@ -122,9 +128,22 @@ export function MealPlan() {
     <div className="page page-wide">
       <PageHeader title="Meal plan" subtitle={target ? `Sized to ${dietitianTarget ? "the target your dietitian set" : "your daily target"} of about ${fmt(target)} kcal` : "Plan your week, then shop for it in one tap"}>
         <Link to={`/grocery?week=${dates[0]}`} className="btn btn-secondary"><ShoppingBasket size={18} /> Grocery list</Link>
+        <button className="btn btn-secondary" onClick={() => setSharing(true)}><Share2 size={18} /> Share</button>
         <button className="btn btn-secondary" onClick={() => setImporting(true)}><FileUp size={18} /> Import CSV</button>
         <Link to="/recipes" className="btn btn-primary"><Plus size={18} /> Browse recipes</Link>
       </PageHeader>
+
+      {sharing && (() => {
+        const shared = planSnapshot(plan, planPortions, dates);
+        return (
+          <ShareSheet
+            title="Share this week's plan"
+            what={{ kind: "plan", plan: shared }}
+            friend={mode === "cloud" && shared.items.length > 0 ? <CloudSendToFriend plan={shared} /> : undefined}
+            onClose={() => setSharing(false)}
+          />
+        );
+      })()}
 
       {importing && (
         <CsvImportSheet

@@ -110,3 +110,9 @@ export const dietitianTarget = v.object({
 });
 
 export const enrolmentStatus = v.union(v.literal("pending_payment"), v.literal("active"), v.literal("completed"), v.literal("cancelled"));
+
+/** A week of the meal plan sent in a message: day 0 is Monday. Recipe ids refer to the app's recipe list. */
+export const sharedPlan = v.object({
+  title: v.string(),
+  items: v.array(v.object({ day: v.number(), meal, recipeId: v.string(), portion: v.optional(v.number()) })),
+});
