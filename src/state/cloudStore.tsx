@@ -39,6 +39,7 @@ function toState(s: Snapshot): PersistedState {
         activity: p.activity,
         goal: p.goal,
         conditions: p.conditions,
+        username: p.username,
       }
     : null;
   const notes: Record<string, DiaryNote> = {};

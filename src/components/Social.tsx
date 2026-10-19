@@ -1,8 +1,8 @@
 // Member-to-member pieces that need an account (Convex): send a plan to a friend, unread badge.
 // The plan card works in both modes.
 import { useMutation, useQuery } from "convex/react";
-import { CalendarPlus, Check } from "lucide-react";
-import { useState } from "react";
+import { AtSign, CalendarPlus, Check, Copy, Pencil, Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import { recipeById } from "../data/recipes";
@@ -10,9 +10,52 @@ import { errorText } from "../lib/errors";
 import { applySharedPlan, mealName, planKcalPerDay, SHARE_MEALS, WEEKDAYS, type SharedPlan } from "../lib/share";
 import { fmt } from "../state/derived";
 import { shiftDate, todayIso, useStore, weekDates } from "../state/store";
-import { FriendForm } from "./ShareSheet";
+import { Avatar } from "./Layout";
+import { Card } from "./ui";
 
-/** Starts (or reopens) a chat by email, sends the plan, then opens the chat. */
+/** Find a member by @username as you type; pick one (or press Enter on an exact username). */
+export function PeoplePicker({ label, onPick, busy, error, autoFocus }: { label: string; onPick: (username: string) => void; busy: boolean; error: string | null; autoFocus?: boolean }) {
+  const [q, setQ] = useState("");
+  const clean = q.trim().replace(/^@+/, "").toLowerCase();
+  const results = useQuery(api.social.findPeople, clean.length >= 2 ? { q: clean } : "skip");
+  return (
+    <div className="people-picker">
+      <form onSubmit={(e) => { e.preventDefault(); if (clean) onPick(clean); }}>
+        <label className="field">
+          <span>{label}</span>
+          <div className="input-icon">
+            <AtSign size={17} aria-hidden />
+            <input value={q} onChange={(e) => setQ(e.target.value.replace(/^@+/, ""))} placeholder="username" autoComplete="off" autoCapitalize="none" spellCheck={false} autoFocus={autoFocus} aria-describedby="picker-hint" />
+          </div>
+        </label>
+      </form>
+      {clean.length >= 2 && results && (
+        results.length ? (
+          <ul className="people-results">
+            {results.map((p) => (
+              <li key={p.username}>
+                <button className="people-result" disabled={busy} onClick={() => onPick(p.username)}>
+                  <Avatar name={p.name} />
+                  <span className="grow">
+                    <strong>{p.name}</strong>
+                    <span className="muted small">@{p.username}{p.role === "dietitian" ? " · Dietitian" : p.role === "student" ? " · Nutrition student" : ""}{p.verified ? " ✓" : ""}</span>
+                  </span>
+                  <Send size={16} aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="small muted">No one has a username starting with @{clean}.</p>
+        )
+      )}
+      {clean.length < 2 && <p id="picker-hint" className="small muted">Type at least 2 letters of their username.</p>}
+      {error && <p className="small error" role="alert">{error}</p>}
+    </div>
+  );
+}
+
+/** Starts (or reopens) a chat by @username, sends the plan, then opens the chat. */
 export function CloudSendToFriend({ plan }: { plan: SharedPlan }) {
   const start = useMutation(api.social.start);
   const send = useMutation(api.social.send);
@@ -20,22 +63,103 @@ export function CloudSendToFriend({ plan }: { plan: SharedPlan }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <FriendForm
-      busy={busy}
-      error={error}
-      onSend={async (email) => {
-        setBusy(true);
-        setError(null);
-        try {
-          const id = await start({ email });
-          await send({ conversationId: id, text: "", plan });
-          navigate(`/messages?c=${id}`);
-        } catch (err) {
-          setError(errorText(err));
-          setBusy(false);
-        }
-      }}
-    />
+    <div className="share-friend">
+      <PeoplePicker
+        label="Send to a Nutrintel friend"
+        busy={busy}
+        error={error}
+        onPick={async (username) => {
+          setBusy(true);
+          setError(null);
+          try {
+            const id = await start({ username });
+            await send({ conversationId: id, text: "", plan });
+            navigate(`/messages?c=${id}`);
+          } catch (err) {
+            setError(errorText(err));
+            setBusy(false);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+/** Gives members who joined before usernames existed their @username, once. */
+export function CloudEnsureUsername() {
+  const { profile } = useStore();
+  const ensure = useMutation(api.profile.ensureUsername);
+  const asked = useRef(false);
+  useEffect(() => {
+    if (profile && !profile.username && !asked.current) {
+      asked.current = true;
+      void ensure({}).catch(() => { asked.current = false; });
+    }
+  }, [profile, ensure]);
+  return null;
+}
+
+/** Your @username on the Me page: copy it, or change it (with a live availability check). */
+export function UsernameCard() {
+  const { profile } = useStore();
+  const save = useMutation(api.profile.setUsername);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const clean = draft.trim().replace(/^@+/, "").toLowerCase();
+  const changed = editing && clean !== (profile?.username ?? "");
+  const problem = useQuery(api.profile.usernameAvailable, changed && clean ? { username: clean } : "skip");
+  if (!profile) return null;
+  const mine = profile.username;
+  return (
+    <Card title="Your username">
+      {!editing ? (
+        <>
+          <p className="username-big">{mine ? `@${mine}` : "Making your username…"}</p>
+          <p className="small muted">Friends find you by your username to chat and share meal plans. Your email stays private.</p>
+          <div className="row">
+            <button className="btn btn-secondary btn-small" disabled={!mine} onClick={async () => { try { await navigator.clipboard.writeText(`@${mine}`); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ } }}>
+              {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Copied" : "Copy"}
+            </button>
+            <button className="btn btn-ghost btn-small" disabled={!mine} onClick={() => { setDraft(mine ?? ""); setEditing(true); setError(null); }}><Pencil size={15} /> Change</button>
+          </div>
+        </>
+      ) : (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError(null);
+            try {
+              await save({ username: clean });
+              setEditing(false);
+            } catch (err) {
+              setError(errorText(err));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label className="field">
+            <span>New username</span>
+            <div className="input-icon">
+              <AtSign size={17} aria-hidden />
+              <input value={draft} onChange={(e) => setDraft(e.target.value.replace(/^@+/, ""))} maxLength={20} autoComplete="off" autoCapitalize="none" spellCheck={false} autoFocus />
+            </div>
+          </label>
+          <p className={`small ${changed && problem ? "error" : "muted"}`} role="status">
+            {!changed ? "3–20 characters: letters, numbers, _ and ." : problem === undefined ? "Checking…" : problem ?? `@${clean} is available.`}
+          </p>
+          {error && <p className="small error" role="alert">{error}</p>}
+          <div className="row">
+            <button className="btn btn-primary btn-small" disabled={busy || !changed || problem !== null}>Save</button>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
+    </Card>
   );
 }
 

@@ -1,4 +1,4 @@
-import { Check, Copy, Download, MessageCircle, Send, Share2 } from "lucide-react";
+import { Check, Copy, Download, MessageCircle, Share2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { journeyText, planText, type JourneyStats, type SharedPlan } from "../lib/share";
 import { journeyStory, planStory } from "../lib/shareImage";
@@ -117,22 +117,5 @@ export function ShareSheet({ what, title, friend, onClose }: { what: ShareWhat; 
         </>
       )}
     </Sheet>
-  );
-}
-
-/** Small form: send to a Nutrintel member by email. The parent does the sending. */
-export function FriendForm({ onSend, busy, error }: { onSend: (email: string) => void; busy: boolean; error: string | null }) {
-  const [email, setEmail] = useState("");
-  return (
-    <form className="share-friend" onSubmit={(e) => { e.preventDefault(); if (email.trim()) onSend(email); }}>
-      <label className="field">
-        <span>Send to a Nutrintel friend</span>
-        <div className="row">
-          <input className="grow" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Their email address" autoComplete="off" />
-          <button className="btn btn-primary" disabled={busy || !email.trim()}><Send size={16} /> Send</button>
-        </div>
-      </label>
-      {error && <p className="small error" role="alert">{error}</p>}
-    </form>
   );
 }

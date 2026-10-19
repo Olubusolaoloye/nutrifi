@@ -1303,3 +1303,14 @@ fieldset.field { border: 0; padding: 0; min-width: 0; }
 .admin-log-action { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
 .admin-log-action.log-verification_approved { color: var(--brand-text); }
 .admin-log-action.log-verification_rejected { color: var(--danger); }
+
+/* ---------- Usernames ---------- */
+.handle { font-weight: 600; font-size: 0.85em; }
+.username-big { margin: 0 0 0.35rem; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.people-picker .field { margin-bottom: 0.4rem; }
+.people-results { list-style: none; margin: 0.25rem 0 0.5rem; padding: 0; display: grid; gap: 0.25rem; }
+.people-result { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.55rem 0.65rem; border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface); color: inherit; text-align: left; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+.people-result:hover:not(:disabled) { border-color: var(--lime-2); background: var(--lime-soft); }
+.people-result .grow { display: flex; flex-direction: column; min-width: 0; }
+.people-result .grow > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.people-result > svg { flex-shrink: 0; color: var(--brand-text); }

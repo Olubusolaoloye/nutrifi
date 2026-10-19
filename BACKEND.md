@@ -19,11 +19,12 @@ Nutrintel runs in two modes:
 | `interventions.ts` | Paid programmes: catalogue of verified dietitians' offerings, enrolment with intake and consent, member programme view, messages, payment confirmation (`markPaid`) |
 | `payments.ts` | Paystack checkout (`startPayment`) and verification on return (`verifyPayment`) |
 | `admin.ts` | Admin portal (admins only): `overview` (counts, 30-day sign-up and active-member trends, programmes and revenue, messaging and reminders), `feed` (latest sign-ups, verifications, enrolments, payments, payouts, waitlist, new chats) `people` (search by name or email, last active) and `log` (the audit log). No message text or food logs |
-| `social.ts` | Member-to-member chats: start a chat by email (they need a profile), send text or a week of the meal plan, inbox with unread counts, mark read, block. Only the two people in a chat can read it; deleting your data deletes your chats |
+| `usernames.ts` | @username rules (3–20 characters, letters, numbers, _ and ., reserved names), lookup and a free name made from the person's name |
+| `social.ts` | Member-to-member chats: find members by @username prefix (`findPeople`), start a chat by @username, send text or a week of the meal plan, inbox with unread counts, mark read, block. Only the two people in a chat can read it; deleting your data deletes your chats |
 | `clients.ts` | Dietitian tools: profile and payout account, offerings and prices, client list, client detail, set target, send plan, supplements, check-ins, complete; admin payouts |
 | `http.ts` | Convex Auth routes and the Paystack webhook (`/paystack/webhook`, signature-checked) |
 | `me.ts` | `snapshot` — one reactive query with everything the signed-in user needs |
-| `profile.ts` | Create the profile at the end of onboarding; edit personal details (role and verification can't be changed by users) |
+| `profile.ts` | Create the profile at the end of onboarding (with an @username); edit personal details (role and verification can't be changed by users); `setUsername`, `usernameAvailable`, `ensureUsername` (gives older profiles a username) |
 | `data.ts` | Diary, water, weight, notes, plan, grocery, calendar and exercise mutations; delete my data / account |
 | `verification.ts` | Upload a document, submit for review, admin review queue and approve/reject |
 | `importLocal.ts` | One-time import of data saved on a device before accounts |

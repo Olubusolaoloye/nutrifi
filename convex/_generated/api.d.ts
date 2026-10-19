@@ -25,6 +25,7 @@ import type * as profile from "../profile.js";
 import type * as reminders from "../reminders.js";
 import type * as settings from "../settings.js";
 import type * as social from "../social.js";
+import type * as usernames from "../usernames.js";
 import type * as validators from "../validators.js";
 import type * as verification from "../verification.js";
 import type * as waitlist from "../waitlist.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   reminders: typeof reminders;
   settings: typeof settings;
   social: typeof social;
+  usernames: typeof usernames;
   validators: typeof validators;
   verification: typeof verification;
   waitlist: typeof waitlist;

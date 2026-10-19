@@ -38,7 +38,7 @@ npm run build      # production build in dist/
 | Calendar of planned meals, activities and appointments | `src/pages/Calendar.tsx` |
 | Exercise log with calories from MET values | `src/pages/Exercises.tsx`, `src/lib/nutrition/activity.ts` |
 | Health insights (featured, popular, tags, related articles) | `src/pages/Learn.tsx`, `src/data/articles.ts` |
-| Messages between members (with an account): chat by email, send a week of your meal plan that a friend adds to their own plan in one tap, block | `src/pages/Messages.tsx`, `convex/social.ts` |
+| Messages between members (with an account): every member has an @username (made from their name, changeable on Me); find friends by username as you type, send a week of your meal plan that a friend adds to their own plan in one tap, block | `src/pages/Messages.tsx`, `convex/social.ts` |
 | Share your meal plan or health journey: WhatsApp text, a story-sized image for Instagram / WhatsApp Status (phone share menu), save image, copy text, or send to a Nutrintel friend. Weight is only shared if you switch it on | `src/components/ShareSheet.tsx`, `src/lib/share.ts`, `src/lib/shareImage.ts` |
 
 **Hybrid rule:** consumers see one simple daily target. People who report a medical condition, and anyone under 18, are sent to a dietitian instead of getting a target. Only verified students and dietitians can use the full Workbench.

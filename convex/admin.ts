@@ -187,7 +187,7 @@ export const people = query({
     const byUser = new Map(profiles.map((p) => [p.userId as string, p]));
     const rows = users
       .map((u) => ({ u, p: byUser.get(u._id) ?? null }))
-      .filter(({ u, p }) => !q || (u.email ?? "").toLowerCase().includes(q) || (p?.name ?? "").toLowerCase().includes(q))
+      .filter(({ u, p }) => !q || (u.email ?? "").toLowerCase().includes(q) || (p?.name ?? "").toLowerCase().includes(q) || (p?.username ?? "").includes(q.replace(/^@/, "")))
       .slice(0, 200);
     return Promise.all(
       rows.map(async ({ u, p }) => {
@@ -200,6 +200,7 @@ export const people = query({
           id: u._id,
           email: u.email ?? null,
           name: p?.name ?? null,
+          username: p?.username ?? null,
           role: p?.role ?? null,
           verification: p?.verification ?? null,
           hasCondition: !!p && p.conditions.length > 0,

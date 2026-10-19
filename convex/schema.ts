@@ -31,7 +31,11 @@ export default defineSchema({
     /** Only changed by the server: on submission (pending) and by admins (verified/rejected). */
     verification,
     createdAt: v.number(),
-  }).index("by_user", ["userId"]),
+    /** Public handle, lowercase without the @ (e.g. "devolu"). Unique. Older profiles get one on their next visit. */
+    username: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_username", ["username"]),
 
   verifications: defineTable({
     userId: v.id("users"),

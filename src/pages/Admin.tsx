@@ -221,7 +221,7 @@ function People() {
   return (
     <section>
       <div className="admin-toolbar">
-        <SearchBox value={search} onChange={setSearch} placeholder="Search name or email" />
+        <SearchBox value={search} onChange={setSearch} placeholder="Search name, @username or email" />
         <span className="muted small">{rows ? `${rows.length} ${rows.length === 1 ? "person" : "people"}${rows.length === 200 ? " (first 200)" : ""}` : "Loading…"}</span>
       </div>
       <div className="card table-wrap">
@@ -230,7 +230,7 @@ function People() {
           <tbody>
             {rows?.map((r) => (
               <tr key={r.id}>
-                <td><strong>{r.name ?? <span className="muted">No profile yet</span>}</strong><span className="muted small" style={{ display: "block" }}>{r.email ?? "no email"}</span></td>
+                <td><strong>{r.name ?? <span className="muted">No profile yet</span>}</strong>{r.username && <span className="muted small"> @{r.username}</span>}<span className="muted small" style={{ display: "block" }}>{r.email ?? "no email"}</span></td>
                 <td>
                   {role(r.role)}
                   {r.role && r.role !== "consumer" && <span className={`tag ${r.verification === "verified" ? "tag-breakfast" : "tag-outline"}`} style={{ marginLeft: "0.4rem" }}>{r.verification}</span>}
