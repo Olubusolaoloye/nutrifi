@@ -227,7 +227,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgb(169 220 75 / 0.7)
 
 .seg { display: flex; background: var(--surface-sunk); border-radius: 14px; padding: 4px; gap: 4px; border: 1px solid var(--hairline); }
 .seg button {
-  flex: 1; min-height: 38px; border: 0; background: none; cursor: pointer; padding: 0 0.7rem; font-size: 0.84rem;
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 38px; border: 0; background: none; cursor: pointer; padding: 0 0.7rem; font-size: 0.84rem;
   border-radius: 10px; color: var(--muted); font-weight: 600; white-space: nowrap; transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm), 0 0 0 1px var(--hairline); }
@@ -287,7 +287,7 @@ a.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .featured-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 1.1rem; }
 .meta { display: flex; align-items: center; gap: 0.6rem; }
 .meta-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.08); color: var(--lime); flex-shrink: 0; }
-.meta span { display: block; font-size: 0.72rem; color: var(--on-ink-muted); font-weight: 600; }
+.meta span:not(.meta-icon) { display: block; font-size: 0.72rem; color: var(--on-ink-muted); font-weight: 600; }
 .meta strong { font-size: 0.98rem; }
 .featured .ring-track { stroke: rgb(255 255 255 / 0.1); }
 .featured .ring-value { stroke: var(--lime); filter: drop-shadow(0 0 6px rgb(195 238 106 / 0.6)); }
@@ -303,7 +303,7 @@ a.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 }
 .tile::after { content: ""; position: absolute; right: -18px; top: -18px; width: 64px; height: 64px; border-radius: 50%; background: rgb(255 255 255 / 0.18); }
 .tile-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: rgb(255 255 255 / 0.7); color: #1d2316; flex-shrink: 0; }
-.tile span { display: block; font-size: 0.74rem; font-weight: 600; opacity: 0.8; }
+.tile span:not(.tile-icon) { display: block; font-size: 0.74rem; font-weight: 600; opacity: 0.8; }
 .tile strong { font-size: 1.12rem; font-weight: 800; letter-spacing: -0.02em; }
 .tile small { font-size: 0.72rem; font-weight: 600; opacity: 0.75; }
 .tile-kcal { background: var(--tile-kcal); }
@@ -1189,3 +1189,17 @@ fieldset.field { border: 0; padding: 0; min-width: 0; }
 .client-layout { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1024px) { .client-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .client-layout > .stack, .programme-cols > .stack { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+
+/* ---------- CSV import ---------- */
+.csv-columns { list-style: none; padding: 0; margin: 0.5rem 0 1rem; display: grid; gap: 0.35rem; }
+.csv-columns code { font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 6px; background: var(--surface-sunk); color: var(--text); }
+.csv-actions { margin-bottom: 0.5rem; }
+.file-btn { cursor: pointer; }
+.file-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.file-btn:focus-within { outline: 2px solid var(--lime-2); outline-offset: 2px; }
+.csv-summary { margin: 1rem 0 0.5rem; }
+.csv-problems { list-style: none; padding: 0.75rem; margin: 0 0 0.75rem; display: grid; gap: 0.4rem; border-radius: 12px; background: var(--surface-sunk); }
+.csv-problems li { display: flex; gap: 0.45rem; align-items: flex-start; }
+.csv-problems svg { color: var(--danger); flex-shrink: 0; margin-top: 3px; }
+.csv-preview { margin-bottom: 0.5rem; }
+.csv-preview td { white-space: nowrap; }
