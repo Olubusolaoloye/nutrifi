@@ -672,3 +672,53 @@ describe("usernames", () => {
     expect(await a.as.mutation(api.profile.ensureUsername, {})).toBe("bisi");
   });
 });
+
+describe("shared grocery lists", () => {
+  async function member(t: ReturnType<typeof convexTest>, email: string, name: string) {
+    const m = await signedIn(t, email);
+    await m.as.mutation(api.profile.create, { ...PROFILE, name, role: "consumer", weightKg: 70 });
+    return m;
+  }
+  const LIST = {
+    title: "Groceries · week of 19 Oct",
+    people: 2,
+    items: [
+      { key: "rice", name: "Rice", category: "Grains", qty: 1.5, unit: "kg", costNaira: 2700 },
+      { key: "tomatoes", name: "Tomatoes", category: "Veggies", qty: 1, unit: "kg", costNaira: 2000 },
+    ],
+  };
+
+  it("sends a list that either person can tick off", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await member(t, "ada@example.com", "Ada");
+    const bisi = await member(t, "bisi@example.com", "Bisi");
+    const id = await ada.as.mutation(api.social.start, { username: "bisi" });
+    // Items Ada already bought arrive ticked; unknown keys are dropped.
+    await ada.as.mutation(api.social.send, { conversationId: id, text: "", grocery: LIST, checked: ["rice", "nonsense"] });
+    expect((await bisi.as.query(api.social.inbox, {}))![0].lastText).toBe("🧺 Groceries · week of 19 Oct");
+
+    let msg = (await bisi.as.query(api.social.thread, { conversationId: id })).messages[0];
+    expect(msg.grocery!.items).toHaveLength(2);
+    expect(msg.checked).toEqual(["rice"]);
+    await bisi.as.mutation(api.social.tickGroceryItem, { messageId: msg.id, key: "tomatoes", done: true });
+    await ada.as.mutation(api.social.tickGroceryItem, { messageId: msg.id, key: "rice", done: false });
+    msg = (await ada.as.query(api.social.thread, { conversationId: id })).messages[0];
+    expect(msg.checked).toEqual(["tomatoes"]);
+    await expect(bisi.as.mutation(api.social.tickGroceryItem, { messageId: msg.id, key: "bread", done: true })).rejects.toThrow(/Not found/);
+  });
+
+  it("keeps lists private, checks them, and stops ticks when blocked", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await member(t, "ada@example.com", "Ada");
+    const bisi = await member(t, "bisi@example.com", "Bisi");
+    const eve = await member(t, "eve@example.com", "Eve");
+    const id = await ada.as.mutation(api.social.start, { username: "bisi" });
+    await ada.as.mutation(api.social.send, { conversationId: id, text: "", grocery: LIST });
+    const msg = (await ada.as.query(api.social.thread, { conversationId: id })).messages[0];
+    await expect(eve.as.mutation(api.social.tickGroceryItem, { messageId: msg.id, key: "rice", done: true })).rejects.toThrow(/Not found/);
+    await expect(ada.as.mutation(api.social.send, { conversationId: id, text: "", grocery: { ...LIST, items: [] } })).rejects.toThrow(/1 to 80/);
+    await expect(ada.as.mutation(api.social.send, { conversationId: id, text: "", grocery: { ...LIST, people: 40 } })).rejects.toThrow(/People/);
+    await bisi.as.mutation(api.social.setBlocked, { conversationId: id, blocked: true });
+    await expect(bisi.as.mutation(api.social.tickGroceryItem, { messageId: msg.id, key: "rice", done: true })).rejects.toThrow(/can't change/);
+  });
+});

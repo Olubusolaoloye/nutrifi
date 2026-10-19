@@ -1,38 +1,32 @@
-import { Banknote, CalendarRange, Check, Flame, Minus, Package, Plus, RotateCcw } from "lucide-react";
+import { Banknote, CalendarRange, Check, Flame, Minus, Package, Plus, RotateCcw, Share2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { ShareSheet } from "../components/ShareSheet";
+import { CloudSendToFriend } from "../components/Social";
 import { Card, PageHeader, SampleNotice, StatCard } from "../components/ui";
-import { GROCERY_CATEGORIES, INGREDIENTS, buildGroceryList, recipeById, type GroceryCategory } from "../data/recipes";
+import { GROCERY_CATEGORIES, recipeById, type GroceryCategory } from "../data/recipes";
+import { CATEGORY_EMOJI, grocerySnapshot, naira, plannedDishes, weekGroceryLines } from "../lib/grocery";
 import { fmt } from "../state/derived";
-import { MEALS, portionOf, shiftDate, todayIso, useStore, weekDates } from "../state/store";
+import { shiftDate, todayIso, useStore, weekDates } from "../state/store";
 
-const CATEGORY_EMOJI: Record<GroceryCategory, string> = {
-  Grains: "🌾", Protein: "🍗", Veggies: "🥬", Fruits: "🍌", Dairy: "🥛", "Oils & spices": "🫙", Others: "🧂",
-};
 const CATEGORY_TONE: Record<GroceryCategory, string> = {
   Grains: "var(--tile-carbs)", Protein: "var(--tile-protein)", Veggies: "var(--tile-kcal)", Fruits: "#f6c3a0",
   Dairy: "#bcdcf5", "Oils & spices": "#e2c88f", Others: "var(--tile-fat)",
 };
-const naira = (n: number) => `₦${fmt(Math.round(n / 10) * 10)}`;
 
 export function Grocery() {
   const [params, setParams] = useSearchParams();
-  const { plan, planPortions, grocery, updateGrocery } = useStore();
+  const { mode, plan, planPortions, grocery, updateGrocery } = useStore();
+  const [sharing, setSharing] = useState(false);
   const [category, setCategory] = useState<GroceryCategory | "All">("All");
   const weekStart = weekDates(params.get("week") ?? todayIso())[0];
   const dates = weekDates(weekStart);
 
-  const dishes = dates.flatMap((d) =>
-    MEALS.flatMap((m) => (plan[d]?.[m] ? [{ recipeId: plan[d][m]!, portion: portionOf(planPortions, d, m) }] : [])),
-  );
+  const dishes = plannedDishes(plan, planPortions, dates);
   const planKcal = dishes.reduce((t, x) => t + (recipeById(x.recipeId)?.kcal ?? 0) * x.portion, 0) * grocery.people;
 
   const lines = useMemo(
-    () =>
-      buildGroceryList(dishes, grocery.people).map((l) => {
-        const qty = grocery.qtyOverride[l.key] ?? l.qty;
-        return { ...l, qty, costNaira: qty * INGREDIENTS[l.key].priceNaira };
-      }),
+    () => weekGroceryLines(plan, planPortions, grocery, dates),
     [dishes.map((x) => `${x.recipeId}*${x.portion}`).join(","), grocery.people, grocery.qtyOverride],
   );
   const shown = lines.filter((l) => category === "All" || l.category === category);
@@ -57,7 +51,21 @@ export function Grocery() {
           <button className="icon-btn sm" onClick={() => setParams({ week: shiftDate(weekStart, 7) })} aria-label="Next week">›</button>
         </div>
         <Link to="/plan" className="btn btn-secondary"><CalendarRange size={18} /> Edit plan</Link>
+        <button className="btn btn-primary" onClick={() => setSharing(true)} disabled={lines.length === 0}><Share2 size={18} /> Share list</button>
       </PageHeader>
+
+      {sharing && (() => {
+        const shared = grocerySnapshot(lines, grocery.people, weekStart);
+        const checked = lines.filter((l) => grocery.purchased[l.key]).map((l) => l.key);
+        return (
+          <ShareSheet
+            title="Share your grocery list"
+            what={{ kind: "grocery", grocery: shared, checked }}
+            friend={mode === "cloud" ? <CloudSendToFriend payload={{ grocery: shared, checked }} /> : undefined}
+            onClose={() => setSharing(false)}
+          />
+        );
+      })()}
 
       <div className="stat-row">
         <StatCard icon={<Banknote size={20} />} tone="kcal" label="Estimated cost" value={naira(total)} />

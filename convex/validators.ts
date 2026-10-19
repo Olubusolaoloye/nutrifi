@@ -116,3 +116,10 @@ export const sharedPlan = v.object({
   title: v.string(),
   items: v.array(v.object({ day: v.number(), meal, recipeId: v.string(), portion: v.optional(v.number()) })),
 });
+
+/** A week's grocery list sent in a message. Either person in the chat can tick items off. */
+export const sharedGrocery = v.object({
+  title: v.string(),
+  people: v.number(),
+  items: v.array(v.object({ key: v.string(), name: v.string(), category: v.string(), qty: v.number(), unit: v.string(), costNaira: v.number() })),
+});

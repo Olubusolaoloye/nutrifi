@@ -139,7 +139,7 @@ export function MealPlan() {
           <ShareSheet
             title="Share this week's plan"
             what={{ kind: "plan", plan: shared }}
-            friend={mode === "cloud" && shared.items.length > 0 ? <CloudSendToFriend plan={shared} /> : undefined}
+            friend={mode === "cloud" && shared.items.length > 0 ? <CloudSendToFriend payload={{ plan: shared }} /> : undefined}
             onClose={() => setSharing(false)}
           />
         );

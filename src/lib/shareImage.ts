@@ -1,6 +1,7 @@
 // Story-sized share images (1080 × 1920, the size Instagram and WhatsApp Status use), drawn on a canvas in the browser.
 import { recipeById } from "../data/recipes";
 import { fmt } from "../state/derived";
+import { byCategory, CATEGORY_EMOJI, groceryTotal, naira, qtyLabel, type SharedGrocery } from "./grocery";
 import { journeyLines, mealName, planKcalPerDay, SHARE_MEALS, WEEKDAYS, type JourneyStats, type SharedPlan } from "./share";
 
 const W = 1080;
@@ -109,5 +110,52 @@ export async function journeyStory(stats: JourneyStats, showWeight: boolean, lin
     text(ctx, l.value, 130, y + 135, 96, 800, INK, W - 260);
     text(ctx, l.label, 130, y + 200, 38, 600, "rgba(17,24,13,0.75)", W - 260);
   });
+  return toBlob(c);
+}
+
+/** The week's shopping as a checklist, two columns, grouped by category. Ticked items are crossed off. */
+export async function groceryStory(g: SharedGrocery, checked: string[], link: string): Promise<Blob> {
+  await document.fonts?.ready;
+  const { c, ctx } = canvas();
+  const done = new Set(checked);
+  frame(ctx, "My grocery list", `${g.title.replace(/^Groceries · /, "")} · about ${naira(groceryTotal(g))}${g.people > 1 ? ` · for ${g.people}` : ""}`, link);
+  // Lay groups out as rows of [header | item], then flow them into two columns.
+  const rows: Array<{ header?: string; name?: string; qty?: string; ticked?: boolean }> = [];
+  for (const { category, items } of byCategory(g)) {
+    rows.push({ header: `${CATEGORY_EMOJI[category]} ${category}` });
+    for (const i of items) rows.push({ name: i.name, qty: qtyLabel(i.qty, i.unit), ticked: done.has(i.key) });
+  }
+  // Card spans 80..1000; 30px padding inside it and 30px between the columns.
+  const top = 440, bottom = H - 230, colW = (W - 160 - 60 - 30) / 2;
+  const lineH = Math.max(34, Math.min(52, ((bottom - top) * 2) / Math.max(1, rows.length)));
+  const perCol = Math.floor((bottom - top) / lineH);
+  const shown = rows.slice(0, perCol * 2);
+  box(ctx, 80, top - 30, W - 160, bottom - top + 50, 32, "rgba(255,255,255,0.88)");
+  shown.forEach((r, i) => {
+    const col = Math.floor(i / perCol);
+    const x = 110 + col * (colW + 30);
+    const y = top + 20 + (i % perCol) * lineH;
+    if (r.header) {
+      text(ctx, r.header, x, y, Math.min(30, lineH * 0.62), 800, INK, colW - 30);
+      return;
+    }
+    const size = Math.min(26, lineH * 0.55);
+    ctx.beginPath();
+    ctx.arc(x + 12, y - size * 0.35, 11, 0, Math.PI * 2);
+    ctx.fillStyle = r.ticked ? LIME : "#ffffff";
+    ctx.fill();
+    ctx.strokeStyle = r.ticked ? "#7fb02f" : "#c9ceb8";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    text(ctx, r.name!, x + 36, y, size, 600, r.ticked ? MUTED : INK, colW - 170);
+    if (r.ticked) {
+      ctx.fillStyle = MUTED;
+      ctx.fillRect(x + 36, y - size * 0.35, Math.min(ctx.measureText(r.name!).width, colW - 170), 2);
+    }
+    ctx.textAlign = "right";
+    text(ctx, r.qty!, x + colW, y, size * 0.9, 600, MUTED);
+    ctx.textAlign = "left";
+  });
+  if (rows.length > shown.length) text(ctx, `+ ${rows.length - shown.length} more in the Nutrintel app`, 110, bottom + 10, 26, 700, MUTED);
   return toBlob(c);
 }

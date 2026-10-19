@@ -1,12 +1,14 @@
 // Member-to-member pieces that need an account (Convex): send a plan to a friend, unread badge.
 // The plan card works in both modes.
 import { useMutation, useQuery } from "convex/react";
-import { AtSign, CalendarPlus, Check, Copy, Pencil, Send } from "lucide-react";
+import { AtSign, CalendarPlus, Check, Copy, Pencil, Send, ShoppingBasket } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { recipeById } from "../data/recipes";
 import { errorText } from "../lib/errors";
+import { byCategory, CATEGORY_EMOJI, groceryTotal, naira, qtyLabel, type SharedGrocery } from "../lib/grocery";
 import { applySharedPlan, mealName, planKcalPerDay, SHARE_MEALS, WEEKDAYS, type SharedPlan } from "../lib/share";
 import { fmt } from "../state/derived";
 import { shiftDate, todayIso, useStore, weekDates } from "../state/store";
@@ -55,8 +57,11 @@ export function PeoplePicker({ label, onPick, busy, error, autoFocus }: { label:
   );
 }
 
-/** Starts (or reopens) a chat by @username, sends the plan, then opens the chat. */
-export function CloudSendToFriend({ plan }: { plan: SharedPlan }) {
+/** What can be sent to a friend from a share sheet. */
+export type FriendPayload = { plan: SharedPlan } | { grocery: SharedGrocery; checked: string[] };
+
+/** Starts (or reopens) a chat by @username, sends the plan or grocery list, then opens the chat. */
+export function CloudSendToFriend({ payload }: { payload: FriendPayload }) {
   const start = useMutation(api.social.start);
   const send = useMutation(api.social.send);
   const navigate = useNavigate();
@@ -73,7 +78,7 @@ export function CloudSendToFriend({ plan }: { plan: SharedPlan }) {
           setError(null);
           try {
             const id = await start({ username });
-            await send({ conversationId: id, text: "", plan });
+            await send({ conversationId: id, text: "", ...payload });
             navigate(`/messages?c=${id}`);
           } catch (err) {
             setError(errorText(err));
@@ -213,6 +218,62 @@ export function PlanCard({ plan, fromMe }: { plan: SharedPlan; fromMe: boolean }
           <button className="btn btn-secondary btn-small" onClick={() => addTo(1)}>Use next week</button>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * A grocery list in a chat: a checklist both people can tick (e.g. one plans, the other shops).
+ * Ticks save straight away and show for both.
+ */
+export function GroceryCard({ messageId, grocery, checked, disabled }: { messageId: string; grocery: SharedGrocery; checked: string[]; disabled?: boolean }) {
+  const tick = useMutation(api.social.tickGroceryItem);
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
+  const done = new Set(checked);
+  const isDone = (key: string) => pending[key] ?? done.has(key);
+  const count = grocery.items.filter((i) => isDone(i.key)).length;
+  const toggle = async (key: string) => {
+    const next = !isDone(key);
+    setPending((p) => ({ ...p, [key]: next }));
+    setError(null);
+    try {
+      await tick({ messageId: messageId as Id<"directMessages">, key, done: next });
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setPending((p) => {
+        const { [key]: _, ...rest } = p;
+        return rest;
+      });
+    }
+  };
+  return (
+    <div className="plan-card grocery-card">
+      <div className="plan-card-head">
+        <strong><ShoppingBasket size={15} aria-hidden /> {grocery.title}</strong>
+        <span className="muted small">
+          {count} of {grocery.items.length} bought · about {naira(groceryTotal(grocery))}{grocery.people > 1 ? ` · for ${grocery.people}` : ""}
+        </span>
+        <span className="grocery-progress" aria-hidden><span style={{ width: `${(count / grocery.items.length) * 100}%` }} /></span>
+      </div>
+      {byCategory(grocery).map(({ category, items }) => (
+        <div key={category} className="grocery-group">
+          <span className="grocery-group-title">{CATEGORY_EMOJI[category]} {category}</span>
+          <ul>
+            {items.map((i) => (
+              <li key={i.key}>
+                <label className={isDone(i.key) ? "is-done" : ""}>
+                  <input type="checkbox" checked={isDone(i.key)} disabled={disabled} onChange={() => void toggle(i.key)} />
+                  <span className="grow">{i.name}</span>
+                  <span className="muted">{qtyLabel(i.qty, i.unit)}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {error && <p className="small error" role="alert">{error}</p>}
     </div>
   );
 }
