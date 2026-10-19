@@ -31,4 +31,12 @@ describe("food database", () => {
     expect(searchFoods("spag bol").map((f) => f.id)).toContain("bolognese");
     expect(searchFoods("shawama").map((f) => f.id)).toContain("shawarma");
   });
+
+  it("has the common Nigerian cereals and porridges", () => {
+    const cereals = FOODS.filter((f) => f.category === "Cereals & porridge").map((f) => f.id);
+    expect(cereals).toEqual(expect.arrayContaining(["pap", "golden-morn", "cornflakes", "custard", "quaker-oats", "tom-brown", "weetabix", "acha"]));
+    expect(searchFoods("semovita").map((f) => f.id)).toContain("semo");
+    expect(searchFoods("akpu").map((f) => f.id)).toContain("fufu");
+    expect(searchFoods("dundun").map((f) => f.id)).toContain("fried-yam");
+  });
 });
