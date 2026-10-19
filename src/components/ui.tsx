@@ -102,9 +102,10 @@ export interface Macros {
   fat: number;
 }
 
-/** The four coloured nutrient tiles from the reference design. */
+/** The four coloured nutrient tiles from the reference design. They lay out by the space they're given, not the screen width. */
 export function MacroTiles({ m, targetKcal }: { m: Macros; targetKcal?: number }) {
   return (
+    <div className="tiles-wrap">
     <div className="tiles">
       <div className="tile tile-kcal">
         <span className="tile-icon"><Flame size={18} /></span>
@@ -122,6 +123,7 @@ export function MacroTiles({ m, targetKcal }: { m: Macros; targetKcal?: number }
         <span className="tile-icon"><Droplet size={18} /></span>
         <div><span>Fat</span><strong>{fmt(m.fat)} <small>g</small></strong></div>
       </div>
+    </div>
     </div>
   );
 }
