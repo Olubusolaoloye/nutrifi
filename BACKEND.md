@@ -65,6 +65,7 @@ Create an account with the email you put in `ADMIN_EMAILS`, and the **Verificati
    `npx convex env set --prod ADMIN_EMAILS "you@example.com"`.
 3. In Netlify → **nutrintel** → **Project configuration → Environment variables**, add `CONVEX_DEPLOY_KEY` with that key.
 4. Redeploy. The build (`npm run build:ci`) deploys the Convex functions, sets `VITE_CONVEX_URL` automatically, and builds the app in cloud mode.
+   Only production builds deploy to Convex. Deploy previews and branch deploys do a plain build (Convex refuses a production key there); set `VITE_CONVEX_URL` for those contexts in Netlify if you want previews connected to Convex.
 
 ## Password reset emails (Resend)
 

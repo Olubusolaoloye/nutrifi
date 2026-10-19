@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dev:backend": "convex dev",
-    "build:ci": "if [ -n \"$CONVEX_DEPLOY_KEY\" ]; then npx convex deploy --cmd 'npm run build'; else npm run build; fi"
+    "build:ci": "if [ -n \"$CONVEX_DEPLOY_KEY\" ] && [ \"${CONTEXT:-production}\" = production ]; then npx convex deploy --cmd 'npm run build'; else npm run build; fi"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
