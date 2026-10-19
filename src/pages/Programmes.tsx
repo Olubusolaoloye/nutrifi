@@ -206,7 +206,8 @@ function EnrolSheet({ programme, offering, onClose }: { programme: Programme; of
       const id = await enrol(offering.id, intake);
       const res = await pay(id);
       if (res.url) window.location.assign(res.url);
-      else navigate(`/my-programmes/${id}`);
+      // Paid: go straight to the chat with their dietitian (pinned at the top of Messages).
+      else navigate(mode === "cloud" ? `/messages?p=${id}` : `/my-programmes/${id}`);
     } catch (err) {
       setError(errorText(err));
       setBusy(false);
@@ -285,14 +286,16 @@ export function PaymentReturn() {
   }, [reference, verify]);
 
   useEffect(() => {
-    if (state === "ok" && myEnrolments?.[0]) navigate(`/my-programmes/${myEnrolments.find((e) => e.status === "active")?.id ?? myEnrolments[0].id}`, { replace: true });
+    if (state !== "ok" || !myEnrolments?.[0]) return;
+    const active = myEnrolments.find((e) => e.status === "active");
+    navigate(active ? `/messages?p=${active.id}` : `/my-programmes/${myEnrolments[0].id}`, { replace: true });
   }, [state, myEnrolments, navigate]);
 
   return (
     <div className="page">
       <div className="card empty-state">
         {state === "checking" && <><CreditCard size={30} aria-hidden /><h2>Confirming your payment…</h2></>}
-        {state === "ok" && <><Check size={30} aria-hidden /><h2>Payment received</h2><p className="muted">Opening your programme…</p></>}
+        {state === "ok" && <><Check size={30} aria-hidden /><h2>Payment received</h2><p className="muted">Opening the chat with your dietitian…</p></>}
         {state === "failed" && (
           <>
             <h2>We couldn't confirm the payment yet</h2>

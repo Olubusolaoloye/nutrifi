@@ -79,7 +79,7 @@ export const NAV_ENTRIES: NavEntry[] = [
 const MOBILE_TABS: NavEntry[] = [
   { to: "/home", label: "Home", icon: LayoutDashboard },
   { to: "/diary", label: "Diary", icon: NotebookPen },
-  { to: "/add", label: "Add", icon: Plus },
+  { to: "/messages", label: "Chat", icon: MessageCircle },
   { to: "/plan", label: "Plan", icon: CalendarRange },
   { to: "/me", label: "Me", icon: UserRound },
 ];
@@ -133,9 +133,10 @@ export function Layout() {
 
       <nav className="tabbar" aria-label="Quick">
         {MOBILE_TABS.map((n) => (
-          <NavLink key={n.to} to={n.to} className={cls(n.to === "/add" ? "nav-add" : "")} aria-label={n.to === "/add" ? "Add food" : undefined}>
-            <span className="nav-icon"><n.icon size={n.to === "/add" ? 22 : 20} /></span>
+          <NavLink key={n.to} to={n.to} className={cls(n.to === "/messages" ? "nav-add" : "")}>
+            <span className="nav-icon"><n.icon size={n.to === "/messages" ? 22 : 20} /></span>
             <span>{n.label}</span>
+            {n.to === "/messages" && mode === "cloud" && <CloudUnreadBadge />}
           </NavLink>
         ))}
       </nav>

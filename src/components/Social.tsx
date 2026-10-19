@@ -1,4 +1,4 @@
-// Member-to-member pieces that need an account (Convex): send a plan to a friend, unread badge.
+// Member-to-member pieces that need an account (Convex): send a plan to a friend, unread badge (friends and programme chats).
 // The plan card works in both modes.
 import { useMutation, useQuery } from "convex/react";
 import { AtSign, CalendarPlus, Check, Copy, Pencil, Send, ShoppingBasket } from "lucide-react";
@@ -170,7 +170,8 @@ export function UsernameCard() {
 
 export function CloudUnreadBadge() {
   const inbox = useQuery(api.social.inbox);
-  const n = inbox?.reduce((t, c) => t + c.unread, 0) ?? 0;
+  const programmes = useQuery(api.interventions.programmeChats);
+  const n = [...(inbox ?? []), ...(programmes ?? [])].reduce((t, c) => t + c.unread, 0);
   return n ? <span className="nav-badge" aria-label={`${n} unread`}>{n > 99 ? "99+" : n}</span> : null;
 }
 

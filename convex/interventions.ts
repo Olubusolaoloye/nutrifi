@@ -182,6 +182,98 @@ export const markRead = mutation({
   },
 });
 
+/* ---------- Programme chats on the Messages page ---------- */
+
+/**
+ * Ending a programme takes both the member and the dietitian. Each side confirms (which posts a note in the chat);
+ * it completes once both have. `ended: false` takes your confirmation back.
+ */
+export async function confirmEnd(ctx: MutationCtx, e: Doc<"enrolments">, userId: Id<"users">, ended: boolean) {
+  if (e.status !== "active") throw new ConvexError("This programme isn't active.");
+  const mine = e.memberId === userId ? "memberEndedAt" : "dietitianEndedAt";
+  const theirs = mine === "memberEndedAt" ? "dietitianEndedAt" : "memberEndedAt";
+  const note = (text: string) => ctx.db.insert("messages", { enrolmentId: e._id, senderId: userId, text, sentAt: Date.now() });
+  if (!ended) {
+    if (e[mine]) {
+      await ctx.db.patch(e._id, { [mine]: undefined });
+      await note("↩️ Let's keep going — I've taken back my request to end the programme.");
+    }
+    return "active" as const;
+  }
+  if (e[mine]) return "waiting" as const;
+  if (e[theirs]) {
+    await ctx.db.patch(e._id, { [mine]: Date.now(), status: "completed" });
+    await note("✅ Confirmed — this programme is now complete. Thank you!");
+    return "completed" as const;
+  }
+  await ctx.db.patch(e._id, { [mine]: Date.now() });
+  await note("🏁 I've marked this programme as finished. Please confirm to end it.");
+  return "waiting" as const;
+}
+
+export const endProgramme = mutation({
+  args: { enrolmentId: v.id("enrolments"), ended: v.boolean() },
+  handler: async (ctx, { enrolmentId, ended }) => {
+    const userId = await requireUser(ctx);
+    const e = await enrolmentFor(ctx, enrolmentId, userId);
+    return confirmEnd(ctx, e, userId, ended);
+  },
+});
+
+async function chatHeader(ctx: QueryCtx, e: Doc<"enrolments">, userId: Id<"users">) {
+  const role = e.memberId === userId ? ("member" as const) : ("dietitian" as const);
+  const other = await getProfile(ctx, role === "member" ? e.dietitianId : e.memberId);
+  const programme = programmeById(e.programmeId);
+  return {
+    id: e._id as string,
+    role,
+    name: other?.name ?? (role === "member" ? "Your dietitian" : "Nutrintel member"),
+    programme: programme ? `${programme.emoji} ${programme.name}` : "Programme",
+    status: e.status,
+    endedByMe: !!(role === "member" ? e.memberEndedAt : e.dietitianEndedAt),
+    endedByThem: !!(role === "member" ? e.dietitianEndedAt : e.memberEndedAt),
+  };
+}
+
+/** Running programmes the user is in (as member or dietitian): pinned at the top of Messages until both sides end them. */
+export const programmeChats = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUser(ctx);
+    const [asMember, asDietitian] = await Promise.all([
+      ctx.db.query("enrolments").withIndex("by_member", (q) => q.eq("memberId", userId)).collect(),
+      ctx.db.query("enrolments").withIndex("by_dietitian", (q) => q.eq("dietitianId", userId)).collect(),
+    ]);
+    const out = [];
+    for (const e of [...asMember, ...asDietitian].filter((x) => x.status === "active" && !x.memberDeleted)) {
+      const head = await chatHeader(ctx, e, userId);
+      const rows = await ctx.db.query("messages").withIndex("by_enrolment", (q) => q.eq("enrolmentId", e._id)).collect();
+      const readAt = (head.role === "member" ? e.memberReadAt : e.dietitianReadAt) ?? 0;
+      const last = rows[rows.length - 1];
+      out.push({
+        ...head,
+        unread: rows.filter((m) => m.senderId !== userId && m.sentAt > readAt).length,
+        lastText: last ? last.text : "",
+        lastFromMe: last ? last.senderId === userId : false,
+        lastAt: new Date(last?.sentAt ?? e.paidAt ?? e.createdAt).toISOString(),
+      });
+    }
+    return out.sort((a, b) => b.lastAt.localeCompare(a.lastAt));
+  },
+});
+
+/** One programme chat, for the Messages page. */
+export const programmeThread = query({
+  args: { enrolmentId: v.string() },
+  handler: async (ctx, { enrolmentId }) => {
+    const userId = await requireUser(ctx);
+    const id = ctx.db.normalizeId("enrolments", enrolmentId);
+    const e = id && (await ctx.db.get(id));
+    if (!e || (e.memberId !== userId && e.dietitianId !== userId) || e.status === "cancelled") return null;
+    return { ...(await chatHeader(ctx, e, userId)), messages: await threadFor(ctx, e._id, userId) };
+  },
+});
+
 /* ---------- Payments (called from payments.ts and http.ts) ---------- */
 
 export const paymentInfo = internalQuery({

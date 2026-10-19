@@ -318,9 +318,9 @@ export function ClientPage() {
                   <button
                     className="btn btn-ghost btn-small"
                     disabled={done.busy}
-                    onClick={() => confirm(`Mark ${c.name}'s programme as completed? Their logs stop being shared with you.`) && done.run(() => complete(c.enrolmentId))}
+                    onClick={() => confirm(`Mark ${c.name}'s programme as finished? It ends once they confirm too, and then their logs stop being shared with you.`) && done.run(() => complete(c.enrolmentId))}
                   >
-                    Mark programme completed
+                    Mark programme finished
                   </button>
                   {done.note}
                 </div>
