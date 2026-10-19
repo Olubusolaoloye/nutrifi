@@ -20,7 +20,7 @@ Nutrintel runs in two modes:
 | `payments.ts` | Paystack checkout (`startPayment`) and verification on return (`verifyPayment`) |
 | `admin.ts` | Admin portal (admins only): `overview` (counts, 30-day sign-up and active-member trends, programmes and revenue, messaging and reminders), `feed` (latest sign-ups, verifications, enrolments, payments, payouts, waitlist, new chats) `people` (search by name or email, last active) and `log` (the audit log). No message text or food logs |
 | `usernames.ts` | @username rules (3–20 characters, letters, numbers, _ and ., reserved names), lookup and a free name made from the person's name |
-| `social.ts` | Member-to-member chats: find members by @username prefix (`findPeople`), start a chat by @username, send text or a week of the meal plan, inbox with unread counts, mark read, block. Only the two people in a chat can read it; deleting your data deletes your chats |
+| `social.ts` | Member-to-member chats: find members by @username prefix (`findPeople`), start a chat by @username, send text, a week of the meal plan, or a grocery list that both people can tick off (`tickGroceryItem`), inbox with unread counts, mark read, block. Only the two people in a chat can read it; deleting your data deletes your chats |
 | `clients.ts` | Dietitian tools: profile and payout account, offerings and prices, client list, client detail, set target, send plan, supplements, check-ins, complete; admin payouts |
 | `http.ts` | Convex Auth routes and the Paystack webhook (`/paystack/webhook`, signature-checked) |
 | `me.ts` | `snapshot` — one reactive query with everything the signed-in user needs |

@@ -1,10 +1,26 @@
 import { Check, Copy, Download, MessageCircle, Share2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { groceryText, type SharedGrocery } from "../lib/grocery";
 import { journeyText, planText, type JourneyStats, type SharedPlan } from "../lib/share";
-import { journeyStory, planStory } from "../lib/shareImage";
+import { groceryStory, journeyStory, planStory } from "../lib/shareImage";
 import { Sheet, Switch } from "./ui";
 
-export type ShareWhat = { kind: "plan"; plan: SharedPlan } | { kind: "journey"; stats: JourneyStats };
+export type ShareWhat =
+  | { kind: "plan"; plan: SharedPlan }
+  | { kind: "journey"; stats: JourneyStats }
+  | { kind: "grocery"; grocery: SharedGrocery; checked: string[] };
+
+function textFor(w: ShareWhat, showWeight: boolean) {
+  if (w.kind === "plan") return planText(w.plan, siteLink());
+  if (w.kind === "grocery") return groceryText(w.grocery, w.checked, siteLink());
+  return journeyText(w.stats, showWeight, siteLink());
+}
+
+function imageFor(w: ShareWhat, showWeight: boolean) {
+  if (w.kind === "plan") return planStory(w.plan, siteLink());
+  if (w.kind === "grocery") return groceryStory(w.grocery, w.checked, siteLink());
+  return journeyStory(w.stats, showWeight, siteLink());
+}
 
 const siteLink = () => window.location.origin;
 
@@ -26,8 +42,8 @@ export function ShareSheet({ what, title, friend, onClose }: { what: ShareWhat; 
   const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
-  const text = what.kind === "plan" ? planText(what.plan, siteLink()) : journeyText(what.stats, showWeight, siteLink());
-  const filename = what.kind === "plan" ? "nutrintel-meal-plan.png" : "nutrintel-journey.png";
+  const text = textFor(what, showWeight);
+  const filename = `nutrintel-${what.kind === "plan" ? "meal-plan" : what.kind === "grocery" ? "grocery-list" : "journey"}.png`;
 
   // Callers build `what` on each render, so redraw only when its contents change.
   const key = JSON.stringify(what);
@@ -36,7 +52,7 @@ export function ShareSheet({ what, title, friend, onClose }: { what: ShareWhat; 
     let url: string | null = null;
     let cancelled = false;
     setImage(null);
-    (w.kind === "plan" ? planStory(w.plan, siteLink()) : journeyStory(w.stats, showWeight, siteLink()))
+    imageFor(w, showWeight)
       .then((blob) => {
         if (cancelled) return;
         url = URL.createObjectURL(blob);
@@ -74,12 +90,12 @@ export function ShareSheet({ what, title, friend, onClose }: { what: ShareWhat; 
     }
   };
 
-  const empty = what.kind === "plan" && what.plan.items.length === 0;
+  const empty = (what.kind === "plan" && what.plan.items.length === 0) || (what.kind === "grocery" && what.grocery.items.length === 0);
 
   return (
     <Sheet title={title} onClose={onClose}>
       {empty ? (
-        <p className="small muted">There's nothing planned this week yet. Add some dishes, then share your plan.</p>
+        <p className="small muted">{what.kind === "grocery" ? "This week's grocery list is empty. Plan some meals and it fills itself." : "There's nothing planned this week yet. Add some dishes, then share your plan."}</p>
       ) : (
         <>
           {what.kind === "journey" && (

@@ -1,14 +1,15 @@
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Ban, CalendarRange, HeartPulse, MessageCirclePlus, Share2, ShieldCheck, TrendingUp } from "lucide-react";
+import { ArrowLeft, Ban, CalendarRange, HeartPulse, MessageCirclePlus, Share2, ShieldCheck, ShoppingBasket, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { MessageBox } from "../components/MessageBox";
-import { PeoplePicker, PlanCard } from "../components/Social";
+import { GroceryCard, PeoplePicker, PlanCard } from "../components/Social";
 import { Avatar } from "../components/Layout";
 import { PageHeader, SearchBox, Sheet } from "../components/ui";
 import { errorText } from "../lib/errors";
+import { grocerySnapshot, weekGroceryLines, type SharedGrocery } from "../lib/grocery";
 import { planSnapshot, type SharedPlan } from "../lib/share";
 import { shiftDate, todayIso, useStore, weekDates } from "../state/store";
 
@@ -152,7 +153,7 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false);
+  const [picking, setPicking] = useState<"plan" | "grocery" | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const count = t?.messages.length ?? 0;
 
@@ -164,7 +165,7 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
     if (count) void markReadRef.current({ conversationId }).catch(() => {});
   }, [count, conversationId]);
 
-  const deliver = async (body: { text: string; plan?: SharedPlan }) => {
+  const deliver = async (body: { text: string; plan?: SharedPlan; grocery?: SharedGrocery; checked?: string[] }) => {
     setBusy(true);
     setError(null);
     try {
@@ -208,8 +209,9 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
         {t === undefined && <p className="muted small center">Loading…</p>}
         {t?.messages.length === 0 && <p className="muted small center">No messages yet. Say hello, or send your meal plan.</p>}
         {t?.messages.map((m) => (
-          <div key={m.id} className={`bubble ${m.fromMe ? "me" : "them"}${m.plan ? " has-plan" : ""}`}>
+          <div key={m.id} className={`bubble ${m.fromMe ? "me" : "them"}${m.plan || m.grocery ? " has-plan" : ""}`}>
             {m.plan && <PlanCard plan={m.plan} fromMe={m.fromMe} />}
+            {m.grocery && <GroceryCard messageId={m.id} grocery={m.grocery as SharedGrocery} checked={m.checked} disabled={t.blocked} />}
             {m.text && <p>{m.text}</p>}
             <span>{m.fromMe ? "You" : t.name} · {when(m.sentAt)}</span>
           </div>
@@ -224,35 +226,52 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
           onChange={setText}
           onSend={submit}
           busy={busy}
-          before={<button type="button" className="icon-btn sm ghost" onClick={() => setPicking(true)} aria-label="Send my meal plan" title="Send my meal plan"><CalendarRange size={17} /></button>}
+          before={
+            <>
+              <button type="button" className="icon-btn sm ghost" onClick={() => setPicking("plan")} aria-label="Send my meal plan" title="Send my meal plan"><CalendarRange size={17} /></button>
+              <button type="button" className="icon-btn sm ghost" onClick={() => setPicking("grocery")} aria-label="Send my grocery list" title="Send my grocery list"><ShoppingBasket size={17} /></button>
+            </>
+          }
         />
       )}
       {error && <p className="small error chat-error" role="alert">{error}</p>}
-      {picking && <PickWeek onClose={() => setPicking(false)} onSend={async (plan) => { if (await deliver({ text: "", plan })) setPicking(false); }} />}
+      {picking && <PickWeek what={picking} onClose={() => setPicking(null)} onSend={async (body) => { if (await deliver({ text: "", ...body })) setPicking(null); }} />}
     </section>
   );
 }
 
-/** Choose which week of your plan to send. */
-function PickWeek({ onClose, onSend }: { onClose: () => void; onSend: (plan: SharedPlan) => void }) {
-  const { plan, planPortions } = useStore();
-  const weeks = [0, 1].map((offset) => ({ offset, shared: planSnapshot(plan, planPortions, weekDates(shiftDate(todayIso(), 7 * offset))) }));
+/** Choose which week of your plan, or of your grocery list, to send. */
+function PickWeek({ what, onClose, onSend }: { what: "plan" | "grocery"; onClose: () => void; onSend: (body: { plan: SharedPlan } | { grocery: SharedGrocery; checked: string[] }) => void }) {
+  const { plan, planPortions, grocery } = useStore();
+  const weeks = [0, 1].map((offset) => {
+    const dates = weekDates(shiftDate(todayIso(), 7 * offset));
+    if (what === "plan") {
+      const shared = planSnapshot(plan, planPortions, dates);
+      return { offset, title: shared.title, count: shared.items.length, label: "planned meals", body: { plan: shared } };
+    }
+    const lines = weekGroceryLines(plan, planPortions, grocery, dates);
+    const shared = grocerySnapshot(lines, grocery.people, dates[0]);
+    const checked = lines.filter((l) => grocery.purchased[l.key]).map((l) => l.key);
+    return { offset, title: shared.title, count: shared.items.length, label: "items to buy", body: { grocery: shared, checked } };
+  });
   return (
-    <Sheet title="Send my meal plan" onClose={onClose}>
+    <Sheet title={what === "plan" ? "Send my meal plan" : "Send my grocery list"} onClose={onClose}>
       <ul className="food-rows">
-        {weeks.map(({ offset, shared }) => (
-          <li key={offset}>
-            <button className="food-row" disabled={!shared.items.length} onClick={() => onSend(shared)}>
-              <span className="thumb sm" aria-hidden><span className="thumb-emoji">📅</span></span>
+        {weeks.map((w) => (
+          <li key={w.offset}>
+            <button className="food-row" disabled={!w.count} onClick={() => onSend(w.body)}>
+              <span className="thumb sm" aria-hidden><span className="thumb-emoji">{what === "plan" ? "📅" : "🧺"}</span></span>
               <div className="food-row-body">
-                <strong>{offset === 0 ? "This week" : "Next week"} · {shared.title}</strong>
-                <span className="muted small">{shared.items.length ? `${shared.items.length} planned meals` : "Nothing planned yet"}</span>
+                <strong>{w.offset === 0 ? "This week" : "Next week"} · {w.title}</strong>
+                <span className="muted small">{w.count ? `${w.count} ${w.label}` : "Nothing planned yet"}</span>
               </div>
             </button>
           </li>
         ))}
       </ul>
-      <p className="small muted">Plan a week on the <Link to="/plan">Meal plan</Link> page first if both are empty.</p>
+      <p className="small muted">
+        {what === "plan" ? "Plan a week on the " : "Your grocery list comes from your "}<Link to="/plan">Meal plan</Link>{what === "plan" ? " page first if both are empty." : ". Plan some meals first if both are empty."}
+      </p>
     </Sheet>
   );
 }

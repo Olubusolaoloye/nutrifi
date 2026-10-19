@@ -5,11 +5,12 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { checkRange, checkText, getProfile, requireUser } from "./helpers";
 import { normalizeUsername, profileByUsername } from "./usernames";
-import { sharedPlan } from "./validators";
+import { sharedGrocery, sharedPlan } from "./validators";
 
 type Ctx = QueryCtx | MutationCtx;
 
 const MAX_PLAN_ITEMS = 28;
+const MAX_GROCERY_ITEMS = 80;
 /** At most this many messages a minute from one person in one chat. */
 const MAX_PER_MINUTE = 20;
 const THREAD_LIMIT = 200;
@@ -56,7 +57,7 @@ export const inbox = query({
         return {
           id: c._id,
           ...(await whoIs(ctx, otherOf(c, userId))),
-          lastText: last ? (last.plan && !last.text ? `📅 ${last.plan.title}` : last.text) : "",
+          lastText: last ? (last.text || (last.plan ? `📅 ${last.plan.title}` : last.grocery ? `🧺 ${last.grocery.title}` : "")) : "",
           lastFromMe: last?.senderId === userId,
           lastAt: new Date(c.lastMessageAt).toISOString(),
           unread: await unreadIn(ctx, c, userId),
@@ -89,6 +90,8 @@ export const thread = query({
         fromMe: m.senderId === userId,
         text: m.text,
         plan: m.plan ?? null,
+        grocery: m.grocery ?? null,
+        checked: m.checked ?? [],
         sentAt: new Date(m.sentAt).toISOString(),
       })),
     };
@@ -133,8 +136,8 @@ export const start = mutation({
 });
 
 export const send = mutation({
-  args: { conversationId: v.id("conversations"), text: v.string(), plan: v.optional(sharedPlan) },
-  handler: async (ctx, { conversationId, text, plan }) => {
+  args: { conversationId: v.id("conversations"), text: v.string(), plan: v.optional(sharedPlan), grocery: v.optional(sharedGrocery), checked: v.optional(v.array(v.string())) },
+  handler: async (ctx, { conversationId, text, plan, grocery, checked }) => {
     const userId = await requireUser(ctx);
     const c = await conversationFor(ctx, conversationId, userId);
     if (c.blockedBy) throw new ConvexError("You can't send messages in this chat.");
@@ -150,14 +153,30 @@ export const send = mutation({
         if (it.portion !== undefined) checkRange(it.portion, 0.25, 4, "Portion");
       }
     }
-    if (!clean && !plan) return;
+    if (grocery) {
+      checkText(grocery.title, 80, "List title");
+      checkRange(grocery.people, 1, 12, "People");
+      if (grocery.items.length === 0 || grocery.items.length > MAX_GROCERY_ITEMS) throw new ConvexError("A shared grocery list has 1 to 80 items.");
+      for (const it of grocery.items) {
+        checkText(it.key, 40, "Item");
+        checkText(it.name, 60, "Item name");
+        checkText(it.category, 30, "Category");
+        checkText(it.unit, 20, "Unit");
+        checkRange(it.qty, 0, 10_000, "Quantity");
+        checkRange(it.costNaira, 0, 10_000_000, "Cost");
+      }
+    }
+    if (plan && grocery) throw new ConvexError("Send a plan and a grocery list as separate messages.");
+    const keys = new Set(grocery?.items.map((i) => i.key) ?? []);
+    const ticked = grocery && checked ? [...new Set(checked)].filter((k) => keys.has(k)) : undefined;
+    if (!clean && !plan && !grocery) return;
     const now = Date.now();
     const recent = await ctx.db
       .query("directMessages")
       .withIndex("by_conversation", (q) => q.eq("conversationId", c._id).gt("sentAt", now - 60_000))
       .collect();
     if (recent.filter((m) => m.senderId === userId).length >= MAX_PER_MINUTE) throw new ConvexError("You're sending messages very fast. Please wait a minute.");
-    await ctx.db.insert("directMessages", { conversationId: c._id, senderId: userId, text: clean, plan, sentAt: now });
+    await ctx.db.insert("directMessages", { conversationId: c._id, senderId: userId, text: clean, plan, grocery, checked: ticked, sentAt: now });
     await ctx.db.patch(c._id, { lastMessageAt: now, [readKey(c, userId)]: now });
   },
 });
@@ -168,6 +187,24 @@ export const markRead = mutation({
     const userId = await requireUser(ctx);
     const c = await conversationFor(ctx, conversationId, userId);
     await ctx.db.patch(c._id, { [readKey(c, userId)]: Date.now() });
+  },
+});
+
+/** Tick or untick an item on a grocery list in a chat. Either person can, so whoever shops keeps it up to date. */
+export const tickGroceryItem = mutation({
+  args: { messageId: v.id("directMessages"), key: v.string(), done: v.boolean() },
+  handler: async (ctx, { messageId, key, done }) => {
+    const userId = await requireUser(ctx);
+    const normalized = ctx.db.normalizeId("directMessages", messageId);
+    const m = normalized && (await ctx.db.get(normalized));
+    if (!m) throw new ConvexError("Not found.");
+    const c = await conversationFor(ctx, m.conversationId, userId);
+    if (c.blockedBy) throw new ConvexError("You can't change this list.");
+    if (!m.grocery || !m.grocery.items.some((i) => i.key === key)) throw new ConvexError("Not found.");
+    const set = new Set(m.checked ?? []);
+    if (done) set.add(key);
+    else set.delete(key);
+    await ctx.db.patch(m._id, { checked: [...set] });
   },
 });
 

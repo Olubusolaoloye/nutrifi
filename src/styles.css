@@ -746,7 +746,7 @@ a.food-row:hover { transform: translateY(-2px); box-shadow: var(--shadow); borde
 .stepper.compact strong { min-width: 1.5rem; text-align: center; }
 
 /* Grocery */
-.grocery-layout { display: grid; gap: 1rem; }
+.grocery-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .stack-bar { display: flex; gap: 4px; height: 16px; margin: 0.75rem 0 1rem; }
 .stack-bar span { border-radius: 5px; min-width: 6px; }
 .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
@@ -1314,3 +1314,19 @@ fieldset.field { border: 0; padding: 0; min-width: 0; }
 .people-result .grow { display: flex; flex-direction: column; min-width: 0; }
 .people-result .grow > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .people-result > svg { flex-shrink: 0; color: var(--brand-text); }
+
+/* ---------- Shared grocery lists ---------- */
+.grocery-card { gap: 0.6rem; }
+.grocery-card .plan-card-head strong { display: inline-flex; align-items: center; gap: 0.35rem; }
+.grocery-progress { display: block; height: 6px; margin-top: 0.35rem; border-radius: 999px; background: var(--surface-sunk); overflow: hidden; }
+.bubble .grocery-progress span { display: block; height: 100%; margin: 0; border-radius: 999px; background: var(--chart-1, var(--lime-2)); transition: width 0.25s var(--ease); }
+.grocery-group-title { display: block; font-size: 0.78rem; font-weight: 800; margin-bottom: 0.15rem; }
+.bubble .grocery-card .grocery-group-title { display: block; }
+.grocery-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+.plan-card .grocery-group li { display: block; }
+.grocery-group label .grow { flex: 1; min-width: 0; }
+.grocery-group label { display: flex; align-items: center; gap: 0.55rem; padding: 0.3rem 0.2rem; border-radius: 8px; font-size: 0.85rem; cursor: pointer; }
+.grocery-group label:hover { background: var(--surface-sunk); }
+.grocery-group input { width: 18px; height: 18px; min-height: 0; margin: 0; flex-shrink: 0; accent-color: var(--brand-text); }
+.grocery-group label.is-done .grow { text-decoration: line-through; color: var(--muted); }
+.grocery-group .muted { flex-shrink: 0; font-size: 0.78rem; }

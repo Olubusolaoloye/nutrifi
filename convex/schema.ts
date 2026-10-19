@@ -15,6 +15,7 @@ import {
   planPrefs,
   profileFields,
   reminderSettings,
+  sharedGrocery,
   sharedPlan,
   role,
   verification,
@@ -207,6 +208,9 @@ export default defineSchema({
     senderId: v.id("users"),
     text: v.string(),
     plan: v.optional(sharedPlan),
+    grocery: v.optional(sharedGrocery),
+    /** Keys of grocery items ticked off (by either person). */
+    checked: v.optional(v.array(v.string())),
     sentAt: v.number(),
   }).index("by_conversation", ["conversationId", "sentAt"]),
 
