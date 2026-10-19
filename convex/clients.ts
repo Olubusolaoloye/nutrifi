@@ -4,7 +4,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { checkDate, checkRange, checkText, getProfile, logAdminAction, requireAdmin } from "./helpers";
-import { dietitianCard, enrolmentFor, lagosToday, requireDietitian, sideRows, threadFor } from "./interventions";
+import { confirmEnd, dietitianCard, enrolmentFor, lagosToday, requireDietitian, sideRows, threadFor } from "./interventions";
 import { dietitianTarget, meal } from "./validators";
 import { LANGUAGES, programmeById } from "../src/data/programmes";
 import { recipeById } from "../src/data/recipes";
@@ -253,11 +253,12 @@ export const addCheckIn = mutation({
   },
 });
 
+/** The dietitian's side of ending a programme; it completes once the member confirms too. */
 export const completeEnrolment = mutation({
   args: { enrolmentId: v.id("enrolments") },
   handler: async (ctx, { enrolmentId }) => {
-    const { e } = await activeEnrolment(ctx, enrolmentId);
-    await ctx.db.patch(e._id, { status: "completed" });
+    const { userId, e } = await activeEnrolment(ctx, enrolmentId);
+    return confirmEnd(ctx, e, userId, true);
   },
 });
 

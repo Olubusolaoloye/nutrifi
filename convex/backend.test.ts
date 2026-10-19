@@ -450,6 +450,7 @@ describe("client tools", () => {
     await expect(m.as.mutation(api.clients.addAdjunct, { enrolmentId, name: "Anything", dose: "", timing: "", reason: "" })).rejects.toThrow();
 
     await d.as.mutation(api.clients.completeEnrolment, { enrolmentId });
+    await m.as.mutation(api.interventions.endProgramme, { enrolmentId, ended: true });
     expect((await m.as.query(api.me.snapshot, {}))!.dietitianTarget).toBeNull();
     await expect(m.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Hi" })).rejects.toThrow(/Messages open/);
     // Completed programmes keep the history but no longer share health logs.
@@ -720,5 +721,40 @@ describe("shared grocery lists", () => {
     await expect(ada.as.mutation(api.social.send, { conversationId: id, text: "", grocery: { ...LIST, people: 40 } })).rejects.toThrow(/People/);
     await bisi.as.mutation(api.social.setBlocked, { conversationId: id, blocked: true });
     await expect(bisi.as.mutation(api.social.tickGroceryItem, { messageId: msg.id, key: "rice", done: true })).rejects.toThrow(/can't change/);
+  });
+});
+
+describe("programme chats", () => {
+  it("pins running programmes for both sides, and ends only when both confirm", async () => {
+    const { t, d, m, enrolmentId } = await paidSetup();
+    const [mine] = await m.as.query(api.interventions.programmeChats, {});
+    expect(mine).toMatchObject({ id: enrolmentId, role: "member", name: "Dr Funke", unread: 0, endedByMe: false, endedByThem: false });
+    expect(mine.programme).toMatch(/Diabetes/i);
+    expect(await d.as.query(api.interventions.programmeChats, {})).toEqual([expect.objectContaining({ role: "dietitian", name: "Adaeze" })]);
+    const stranger = await signedIn(t, "bob@example.com");
+    expect(await stranger.as.query(api.interventions.programmeChats, {})).toEqual([]);
+    expect(await stranger.as.query(api.interventions.programmeThread, { enrolmentId })).toBeNull();
+    await expect(stranger.as.mutation(api.interventions.endProgramme, { enrolmentId, ended: true })).rejects.toThrow(/Not found/);
+
+    await d.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Welcome Ada!" });
+    expect((await m.as.query(api.interventions.programmeChats, {}))[0]).toMatchObject({ unread: 1, lastText: "Welcome Ada!", lastFromMe: false });
+
+    // The dietitian marks it finished: still running and pinned, with a note in the chat for the member.
+    expect(await d.as.mutation(api.clients.completeEnrolment, { enrolmentId })).toBe("waiting");
+    let th = (await m.as.query(api.interventions.programmeThread, { enrolmentId }))!;
+    expect(th).toMatchObject({ status: "active", endedByMe: false, endedByThem: true });
+    expect(th.messages.at(-1)!.text).toMatch(/Please confirm/);
+    // The member can keep going instead; the dietitian takes it back.
+    expect(await d.as.mutation(api.interventions.endProgramme, { enrolmentId, ended: false })).toBe("active");
+    expect((await m.as.query(api.interventions.programmeThread, { enrolmentId }))!.endedByThem).toBe(false);
+
+    expect(await m.as.mutation(api.interventions.endProgramme, { enrolmentId, ended: true })).toBe("waiting");
+    expect(await m.as.mutation(api.interventions.endProgramme, { enrolmentId, ended: true })).toBe("waiting");
+    expect(await d.as.mutation(api.interventions.endProgramme, { enrolmentId, ended: true })).toBe("completed");
+    th = (await m.as.query(api.interventions.programmeThread, { enrolmentId }))!;
+    expect(th.status).toBe("completed");
+    expect(await m.as.query(api.interventions.programmeChats, {})).toEqual([]);
+    expect(await d.as.query(api.interventions.programmeChats, {})).toEqual([]);
+    await expect(m.as.mutation(api.interventions.endProgramme, { enrolmentId, ended: true })).rejects.toThrow(/isn't active/);
   });
 });

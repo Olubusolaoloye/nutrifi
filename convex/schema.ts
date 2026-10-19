@@ -155,6 +155,9 @@ export default defineSchema({
     planWeekStart: v.optional(isoDate),
     memberReadAt: v.optional(v.number()),
     dietitianReadAt: v.optional(v.number()),
+    /** Ending takes both sides: each one's confirmation time; it completes when both are set. */
+    memberEndedAt: v.optional(v.number()),
+    dietitianEndedAt: v.optional(v.number()),
     /** The member deleted their data; the row stays as a payment record only. */
     memberDeleted: v.optional(v.boolean()),
   })

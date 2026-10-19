@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Ban, CalendarRange, HeartPulse, MessageCirclePlus, Share2, ShieldCheck, ShoppingBasket, TrendingUp } from "lucide-react";
+import { ArrowLeft, Ban, CalendarRange, Flag, HeartPulse, MessageCirclePlus, Pin, Share2, ShieldCheck, ShoppingBasket, Stethoscope, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
@@ -25,11 +25,28 @@ const when = (iso: string) => {
     : d.toLocaleDateString("en-NG", { day: "numeric", month: "short" });
 };
 
+/** The first pinned chat until you join a programme: a way in to working with a dietitian. */
+function ProgrammesPromo() {
+  return (
+    <Link to="/programmes" className="thread pinned-thread">
+      <span className="avatar" aria-hidden>🩺</span>
+      <span className="grow thread-body">
+        <strong>Check out our programmes</strong>
+        <span className="thread-preview">Work 1-to-1 with a verified dietitian. Your chat with them opens here.</span>
+      </span>
+      <Pin size={15} className="pin-icon" aria-label="Pinned" />
+    </Link>
+  );
+}
+
 /** Without accounts there's no one to message, but sharing still works. */
 function LocalMessages() {
   return (
     <div className="page">
       <PageHeader title="Messages" subtitle="Chat with friends and share your journey" />
+      <ul className="pinned-list card">
+        <li><ProgrammesPromo /></li>
+      </ul>
       <div className="card empty-state">
         <div className="empty-art" aria-hidden>💬</div>
         <h2>Messaging needs a Nutrintel account</h2>
@@ -46,28 +63,56 @@ function LocalMessages() {
 function CloudMessages() {
   const [params, setParams] = useSearchParams();
   const inbox = useQuery(api.social.inbox);
+  const programmes = useQuery(api.interventions.programmeChats);
+  const { profile } = useStore();
   const [query, setQuery] = useState("");
   const [composing, setComposing] = useState(false);
   const activeId = params.get("c");
+  const programmeId = params.get("p");
   const open = (id: string | null) => setParams(id ? { c: id } : {}, { replace: !id });
+  const openProgramme = (id: string) => setParams({ p: id });
   const q = query.trim().toLowerCase();
   const list = (inbox ?? []).filter((c) => !q || c.name.toLowerCase().includes(q) || (c.username ?? "").includes(q.replace(/^@/, "")));
   const active = inbox?.find((c) => c.id === activeId) ?? null;
   // On phones an open chat fills the screen, without the tab bar (see .chat-open in styles.css).
+  const chatOpen = !!(activeId || programmeId);
   useEffect(() => {
-    if (!activeId) return;
+    if (!chatOpen) return;
     document.body.classList.add("chat-open");
     return () => document.body.classList.remove("chat-open");
-  }, [activeId]);
+  }, [chatOpen]);
 
   return (
     <div className="page page-wide">
       <PageHeader title="Messages" subtitle="Chat with friends and share your meal plan">
         <button className="btn btn-primary" onClick={() => setComposing(true)}><MessageCirclePlus size={18} /> New message</button>
       </PageHeader>
-      <div className={`chat-layout${activeId ? " has-active" : ""}`}>
+      <div className={`chat-layout${chatOpen ? " has-active" : ""}`}>
         <section className="card chat-list">
           <SearchBox value={query} onChange={setQuery} placeholder="Search chats by name or @username" />
+          {!q && (
+            <ul className="pinned-list" aria-label="Pinned">
+              {programmes?.map((c) => (
+                <li key={c.id}>
+                  <button className={`thread pinned-thread${c.id === programmeId ? " on" : ""}`} onClick={() => openProgramme(c.id)}>
+                    <Avatar name={c.name} />
+                    <span className="grow thread-body">
+                      <span className="row" style={{ justifyContent: "space-between" }}>
+                        <strong>{c.name}</strong>
+                        <span className="muted small">{when(c.lastAt)}</span>
+                      </span>
+                      <span className="pinned-label"><Stethoscope size={12} aria-hidden /> {c.role === "member" ? "Your dietitian" : "Client"} · {c.programme}</span>
+                      <span className="thread-preview">
+                        {c.endedByThem && !c.endedByMe ? "🏁 Asked to end the programme — tap to confirm" : c.lastText ? `${c.lastFromMe ? "You: " : ""}${c.lastText}` : "Say hello 👋"}
+                      </span>
+                    </span>
+                    {c.unread > 0 ? <span className="unread" aria-label={`${c.unread} unread`}>{c.unread}</span> : <Pin size={15} className="pin-icon" aria-label="Pinned" />}
+                  </button>
+                </li>
+              ))}
+              {programmes?.length === 0 && profile?.role !== "dietitian" && <li><ProgrammesPromo /></li>}
+            </ul>
+          )}
           {inbox === undefined ? (
             <p className="muted small">Loading…</p>
           ) : list.length === 0 ? (
@@ -91,10 +136,12 @@ function CloudMessages() {
               ))}
             </ul>
           )}
-          <p className="small muted chat-note"><HeartPulse size={14} aria-hidden />Chats with your dietitian are inside your <Link to="/programmes">programme</Link>.</p>
+          <p className="small muted chat-note"><HeartPulse size={14} aria-hidden />Programme chats stay pinned at the top until you and your dietitian both end the programme.</p>
         </section>
 
-        {active ? (
+        {programmeId ? (
+          <ProgrammeThreadView key={programmeId} id={programmeId} onBack={() => open(null)} />
+        ) : active ? (
           <ThreadView key={active.id} id={active.id} onBack={() => open(null)} />
         ) : (
           <section className="card chat-thread chat-placeholder">
@@ -242,6 +289,123 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
       )}
       {error && <p className="small error chat-error" role="alert">{error}</p>}
       {picking && <PickWeek what={picking} onClose={() => setPicking(null)} onSend={async (body) => { if (await deliver({ text: "", ...body })) setPicking(null); }} />}
+    </section>
+  );
+}
+
+/** "Dr Funke Adeyemi" → "Dr Funke", "Adaeze Okafor" → "Adaeze". */
+const shortName = (name: string) => name.match(/^((?:dr|prof|mr|mrs|ms)\.?\s+)?\S+/i)?.[0] ?? name;
+
+/** A member ↔ dietitian programme chat. Either side can end the programme; it ends once both have confirmed. */
+function ProgrammeThreadView({ id, onBack }: { id: string; onBack: () => void }) {
+  const t = useQuery(api.interventions.programmeThread, { enrolmentId: id });
+  const send = useMutation(api.interventions.sendMessage);
+  const markRead = useMutation(api.interventions.markRead);
+  const endProgramme = useMutation(api.interventions.endProgramme);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const end = useRef<HTMLDivElement>(null);
+  const count = t?.messages.length ?? 0;
+  const enrolmentId = id as Id<"enrolments">;
+
+  const markReadRef = useRef(markRead);
+  markReadRef.current = markRead;
+  const live = t?.status === "active";
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "nearest" });
+    if (count && live) void markReadRef.current({ enrolmentId }).catch(() => {});
+  }, [count, enrolmentId, live]);
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      return true;
+    } catch (err) {
+      setError(errorText(err));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (t === null) {
+    return (
+      <section className="card chat-thread chat-placeholder">
+        <button className="icon-btn sm ghost chat-back" onClick={onBack} aria-label="Back to chats"><ArrowLeft size={16} /></button>
+        <p className="muted">This chat isn't available.</p>
+      </section>
+    );
+  }
+  const first = t ? shortName(t.name) : "";
+  const setEnded = (ended: boolean) => {
+    if (ended && !t!.endedByThem && !confirm(`End this programme? It ends once ${first} confirms too.`)) return;
+    void run(() => endProgramme({ enrolmentId, ended }));
+  };
+
+  return (
+    <section className="card chat-thread">
+      <header className="chat-head">
+        <button className="icon-btn sm ghost chat-back" onClick={onBack} aria-label="Back to chats"><ArrowLeft size={16} /></button>
+        <Avatar name={t?.name ?? "?"} />
+        <div className="grow">
+          <strong>{t?.name ?? "…"}</strong>
+          <span className="muted small" style={{ display: "block" }}>{t ? `${t.role === "member" ? "Your dietitian" : "Client"} · ${t.programme}` : ""}</span>
+        </div>
+        {t && (
+          <Link to={t.role === "member" ? `/my-programmes/${id}` : `/clients/${id}`} className="btn btn-ghost btn-small">
+            <Stethoscope size={15} /> <span className="hide-xs">Programme</span>
+          </Link>
+        )}
+      </header>
+      {t && live && (t.endedByThem || t.endedByMe) && (
+        <div className="chat-banner" role="status">
+          {t.endedByThem && !t.endedByMe ? (
+            <>
+              <span className="grow">🏁 {first} marked the programme as finished.</span>
+              <button className="btn btn-primary btn-small" disabled={busy} onClick={() => setEnded(true)}>Confirm end</button>
+              <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => setEnded(false)}>Keep going</button>
+            </>
+          ) : (
+            <>
+              <span className="grow">Waiting for {first} to confirm the programme has ended.</span>
+              <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => setEnded(false)}>Undo</button>
+            </>
+          )}
+        </div>
+      )}
+      <div className="chat-body" aria-live="polite">
+        {t === undefined && <p className="muted small center">Loading…</p>}
+        {t?.messages.length === 0 && (
+          <p className="muted small center">{t.role === "member" ? `Say hello to ${first} — tell them about your goals and anything you'd like help with.` : `Say hello to ${first} and let them know what happens next.`}</p>
+        )}
+        {t?.messages.map((m) => (
+          <div key={m.id} className={`bubble ${m.fromMe ? "me" : "them"}`}>
+            <p>{m.text}</p>
+            <span>{m.fromMe ? "You" : m.senderName} · {when(m.sentAt)}</span>
+          </div>
+        ))}
+        <div ref={end} />
+      </div>
+      {t && !live ? (
+        <p className="small muted chat-blocked">{t.status === "completed" ? "This programme has ended. The chat stays here for your records." : "Messages open once the programme is paid for."}</p>
+      ) : (
+        <MessageBox
+          value={text}
+          onChange={setText}
+          onSend={async () => { if (await run(() => send({ enrolmentId, text }))) setText(""); }}
+          busy={busy}
+          placeholder={first ? `Message ${first}…` : undefined}
+          before={
+            t && !t.endedByMe && !t.endedByThem ? (
+              <button type="button" className="icon-btn sm ghost" onClick={() => setEnded(true)} aria-label="End programme" title="End programme"><Flag size={17} /></button>
+            ) : undefined
+          }
+        />
+      )}
+      {error && <p className="small error chat-error" role="alert">{error}</p>}
     </section>
   );
 }
