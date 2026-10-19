@@ -53,6 +53,12 @@ function CloudMessages() {
   const q = query.trim().toLowerCase();
   const list = (inbox ?? []).filter((c) => !q || c.name.toLowerCase().includes(q) || (c.username ?? "").includes(q.replace(/^@/, "")));
   const active = inbox?.find((c) => c.id === activeId) ?? null;
+  // On phones an open chat fills the screen, without the tab bar (see .chat-open in styles.css).
+  useEffect(() => {
+    if (!activeId) return;
+    document.body.classList.add("chat-open");
+    return () => document.body.classList.remove("chat-open");
+  }, [activeId]);
 
   return (
     <div className="page page-wide">
@@ -186,7 +192,7 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
   return (
     <section className="card chat-thread">
       <header className="chat-head">
-        <button className="icon-btn sm ghost show-xs" onClick={onBack} aria-label="Back to chats"><ArrowLeft size={16} /></button>
+        <button className="icon-btn sm ghost chat-back" onClick={onBack} aria-label="Back to chats"><ArrowLeft size={16} /></button>
         <Avatar name={t?.name ?? "?"} />
         <div className="grow">
           <strong>{t?.name ?? "…"}</strong>
