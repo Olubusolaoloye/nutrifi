@@ -1,9 +1,11 @@
-import { ArrowLeftRight, ChevronLeft, ChevronRight, Minus, Plus, ShoppingBasket, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, ChevronRight, FileUp, Minus, Plus, ShoppingBasket, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CsvImportSheet, inBatches } from "../components/CsvImport";
 import { PageHeader, SampleNotice, Sheet, Thumb } from "../components/ui";
 import { CUISINES, type Cuisine } from "../data/foods";
 import { ALLERGENS, DIETS, RECIPES, costPerServing, fitsDiet, recipeAllergens, recipeById, type Recipe } from "../data/recipes";
+import { parsePlanCsv, planTemplate } from "../lib/csvImport";
 import { fitPortion, mealTargets, personalWeekPlan, portionLabel, swapOptions, type PlanPrefs } from "../lib/planner";
 import { bodySummary, fmt } from "../state/derived";
 import { portionOf, shiftDate, todayIso, useStore, weekDates, type Meal } from "../state/store";
@@ -88,6 +90,7 @@ export function MealPlan() {
   const [anchor, setAnchor] = useState(todayIso());
   const [editing, setEditing] = useState<{ date: string; meal: Meal } | null>(null);
   const [showPrefs, setShowPrefs] = useState(false);
+  const [importing, setImporting] = useState(false);
   const dates = weekDates(anchor);
   const today = todayIso();
   const summary = profile && latestWeightKg !== null ? bodySummary(profile, latestWeightKg, dietitianTarget) : null;
@@ -119,8 +122,39 @@ export function MealPlan() {
     <div className="page page-wide">
       <PageHeader title="Meal plan" subtitle={target ? `Sized to ${dietitianTarget ? "the target your dietitian set" : "your daily target"} of about ${fmt(target)} kcal` : "Plan your week, then shop for it in one tap"}>
         <Link to={`/grocery?week=${dates[0]}`} className="btn btn-secondary"><ShoppingBasket size={18} /> Grocery list</Link>
+        <button className="btn btn-secondary" onClick={() => setImporting(true)}><FileUp size={18} /> Import CSV</button>
         <Link to="/recipes" className="btn btn-primary"><Plus size={18} /> Browse recipes</Link>
       </PageHeader>
+
+      {importing && (
+        <CsvImportSheet
+          title="Import meal plan"
+          intro="Plan any number of days from a spreadsheet. Save it as CSV with these columns in the first row:"
+          columns={[
+            { name: "date", hint: "YYYY-MM-DD or DD/MM/YYYY" },
+            { name: "meal", hint: "Breakfast, Lunch, Dinner or Snack" },
+            { name: "recipe", hint: "a dish from the Healthy menu, e.g. Moi moi with egg" },
+            { name: "servings", hint: "optional, ¼ to 4 (default 1)" },
+          ]}
+          templateName="nutrintel-meal-plan.csv"
+          template={() => planTemplate(dates)}
+          parse={parsePlanCsv}
+          headings={["Date", "Meal", "Dish", "Servings", "Calories"]}
+          renderRow={(it) => {
+            const r = recipeById(it.recipeId)!;
+            return [it.date, it.meal === "Snacks" ? "Snack" : it.meal, r.name, portionLabel(it.portion), `${fmt(r.kcal * it.portion)} kcal`];
+          }}
+          note={(items) => {
+            const replaced = items.filter((it) => plan[it.date]?.[it.meal]).length;
+            return replaced > 0 ? <p className="small muted">{replaced} {replaced === 1 ? "meal already planned is" : "meals already planned are"} replaced; other planned meals stay.</p> : null;
+          }}
+          onImport={(items) => {
+            inBatches(items.map(({ date, meal, recipeId, portion }) => ({ date, meal, recipeId, portion })), 60, replacePlan);
+            setAnchor(items.reduce((d, it) => (it.date < d ? it.date : d), items[0].date));
+          }}
+          onClose={() => setImporting(false)}
+        />
+      )}
 
       {summary && summary.target.kind !== "target" && (
         <div className="banner banner-warn">

@@ -1,9 +1,11 @@
-import { Beef, ChevronLeft, ChevronRight, Droplet, Flame, LayoutList, Plus, Table2, Trash2, Wheat } from "lucide-react";
+import { Beef, ChevronLeft, ChevronRight, Droplet, FileUp, Flame, LayoutList, Plus, Table2, Trash2, Wheat } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CsvImportSheet, inBatches } from "../components/CsvImport";
 import { NoteCard } from "../components/NoteCard";
 import { MacroTiles, MealTag, NutrientChips, PageHeader, StatCard, Thumb } from "../components/ui";
 import { foodById, nutrientsFor } from "../data/foods";
+import { diaryTemplate, parseDiaryCsv } from "../lib/csvImport";
 import { dailyTotals, fmt } from "../state/derived";
 import { FEELINGS, MEALS, noteKey, shiftDate, todayIso, useStore, weekDates, type DiaryEntry } from "../state/store";
 
@@ -12,9 +14,10 @@ const pct = (now: number, before: number, beforeCount: number) =>
   beforeCount >= 5 && before > 0 ? ((now - before) / before) * 100 : null;
 
 export function Diary() {
-  const { diary, notes, removeDiaryEntry } = useStore();
+  const { diary, notes, removeDiaryEntry, addDiaryEntries } = useStore();
   const [date, setDate] = useState(todayIso());
   const [view, setView] = useState<"day" | "week">("day");
+  const [importing, setImporting] = useState(false);
   const today = todayIso();
   const isToday = date === today;
 
@@ -49,8 +52,37 @@ export function Diary() {
         </div>
         <button className="icon-btn" onClick={() => setDate(shiftDate(date, view === "day" ? -1 : -7))} aria-label="Previous"><ChevronLeft size={18} /></button>
         <button className="icon-btn" onClick={() => setDate(shiftDate(date, view === "day" ? 1 : 7) > today ? today : shiftDate(date, view === "day" ? 1 : 7))} disabled={view === "day" ? isToday : weekSet.has(today)} aria-label="Next"><ChevronRight size={18} /></button>
+        <button className="btn btn-secondary" onClick={() => setImporting(true)}><FileUp size={18} /> Import CSV</button>
         <Link to="/add" className="btn btn-primary"><Plus size={18} /> Log food</Link>
       </PageHeader>
+
+      {importing && (
+        <CsvImportSheet
+          title="Import food log"
+          intro="Bring in meals you've tracked in a spreadsheet or another app. Save it as CSV with these columns in the first row:"
+          columns={[
+            { name: "date", hint: "YYYY-MM-DD or DD/MM/YYYY, today or earlier" },
+            { name: "meal", hint: "Breakfast, Lunch, Dinner or Snack" },
+            { name: "food", hint: "a food or recipe name from Nutrintel, e.g. Jollof rice" },
+            { name: "portion or grams", hint: "optional, e.g. \"1 plate\" or 250; otherwise the usual portion" },
+            { name: "time", hint: "optional, e.g. 08:30" },
+          ]}
+          templateName="nutrintel-food-log.csv"
+          template={() => diaryTemplate(today)}
+          parse={(text) => parseDiaryCsv(text, today)}
+          headings={["Date", "Meal", "Food", "Amount", "Calories"]}
+          renderRow={(e) => {
+            const food = foodById(e.foodId)!;
+            return [e.date, e.meal, food.name, e.portionLabel, `${fmt(nutrientsFor(food, e.grams).kcal)} kcal`];
+          }}
+          onImport={(items) => {
+            inBatches(items.map(({ date, meal, foodId, grams, portionLabel, loggedAt }) => ({ date, meal, foodId, grams, portionLabel, loggedAt })), 20, addDiaryEntries);
+            const latest = items.reduce((d, e) => (e.date > d ? e.date : d), items[0].date);
+            setDate(latest);
+          }}
+          onClose={() => setImporting(false)}
+        />
+      )}
 
       <div className="stat-row">
         <StatCard icon={<Flame size={20} />} tone="kcal" label="Calories this week" value={fmt(weekTotals.kcal)} unit="kcal" delta={pct(weekTotals.kcal, prevTotals.kcal, n)} />

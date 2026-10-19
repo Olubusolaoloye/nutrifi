@@ -284,7 +284,7 @@ export function LocalStoreProvider({ children }: { children: ReactNode }) {
       addDiaryEntries: (entries) =>
         setState((s) => ({
           ...s,
-          diary: [...s.diary, ...entries.map((e) => ({ loggedAt: new Date().toISOString(), ...e, id: crypto.randomUUID() }))],
+          diary: [...s.diary, ...entries.map((e) => ({ ...e, loggedAt: e.loggedAt ?? new Date().toISOString(), id: crypto.randomUUID() }))],
         })),
       removeDiaryEntry: (id) => setState((s) => ({ ...s, diary: s.diary.filter((e) => e.id !== id) })),
       addWater: (date, ml) =>

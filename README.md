@@ -27,6 +27,7 @@ npm run build      # production build in dist/
 | Add food: Naija, Continental and International sections | `src/pages/AddFood.tsx`, `src/data/foods.ts` |
 | Healthy menu and recipe pages (servings scaling, ingredients, directions) | `src/pages/Recipes.tsx`, `src/data/recipes.ts` |
 | Personal meal plans: a week sized to your daily target (portions in ¼ servings), using your cuisines, diet, allergies and ₦ budget | `src/pages/MealPlan.tsx`, `src/lib/planner.ts` |
+| CSV import for the food diary and meal plan: download a template, preview what will be imported, see each row that can't be (with its line number); names are matched to Nutrintel's foods and recipes | `src/lib/csvImport.ts`, `src/components/CsvImport.tsx` |
 | Swap options: dishes with about the same calories for the same kind of meal, labelled "Cheaper" / "More protein" | `src/lib/planner.ts` |
 | Reminders for meals (with the planned dish), water, weekly weigh-in and planning, and calendar events — by push notification and WhatsApp | `src/pages/Reminders.tsx`, `src/lib/reminders.ts`, `convex/reminders.ts`, `convex/notify.ts` |
 | Sign in / create account / forgot password (cloud mode) | `src/pages/Auth.tsx` |
