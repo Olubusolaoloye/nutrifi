@@ -120,7 +120,19 @@ const RECIPE_TO_FOOD: Record<string, string> = {
 };
 
 /** No suitable openly licensed photo found yet: these show their emoji. */
-export const EMOJI_ONLY = new Set(["recipe:pepper-soup", "recipe:yam-egg"]);
+export const EMOJI_ONLY = new Set([
+  "recipe:pepper-soup", "recipe:yam-egg",
+  // Nigerian dishes, cereals and fruits added without photos yet.
+  "golden-morn", "cornflakes", "custard", "quaker-oats", "tom-brown", "weetabix", "choco-cereal", "acha",
+  "millet-pap", "semo", "fufu", "wheat", "tuwo", "starch", "fried-rice", "coconut-rice",
+  "rice-beans", "jollof-spaghetti", "masa", "corn", "boiled-yam", "fried-yam", "yam-porridge", "plantain-porridge",
+  "boiled-plantain", "boli", "gizdodo", "stew", "banga", "afang", "edikaikong", "oha",
+  "bitterleaf", "nsala", "gbegiri", "ewedu", "pepper-soup", "ewa-agoyin", "goat-meat", "turkey",
+  "fried-fish", "ponmo", "snail", "asun", "nkwobi", "kilishi", "puff-puff", "chin-chin",
+  "meat-pie", "sausage-roll", "doughnut", "buns", "plantain-chips", "abacha", "tiger-nuts", "coconut",
+  "kunu", "fura", "malt-drink", "soft-drink", "chapman", "malt-cocoa", "banana", "orange",
+  "pawpaw", "watermelon", "pineapple", "mango", "agbalumo", "garden-egg",
+]);
 
 export function photoFor(key: string): Photo | undefined {
   if (PHOTOS[key]) return PHOTOS[key];
