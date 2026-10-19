@@ -550,3 +550,47 @@ describe("member messages", () => {
     expect(await t.run((ctx) => ctx.db.query("directMessages").collect())).toEqual([]);
   });
 });
+
+describe("admin dashboard", () => {
+  it("is admin-only", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await signedIn(t, "ada@example.com");
+    await as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 70 });
+    await expect(as.query(api.admin.overview, {})).rejects.toThrow(/Admins only/);
+    await expect(as.query(api.admin.feed, {})).rejects.toThrow(/Admins only/);
+    await expect(as.query(api.admin.people, {})).rejects.toThrow(/Admins only/);
+  });
+
+  it("counts people, activity and messages, without message text", async () => {
+    const t = convexTest(schema, modules);
+    const admin = await signedIn(t, "admin@nutrintel.ng");
+    const ada = await signedIn(t, "ada@example.com");
+    const bisi = await signedIn(t, "bisi@example.com");
+    await signedIn(t, "half@example.com"); // never finished onboarding
+    await ada.as.mutation(api.profile.create, { ...PROFILE, name: "Ada", role: "consumer", weightKg: 70 });
+    await bisi.as.mutation(api.profile.create, { ...PROFILE, name: "Bisi", role: "consumer", conditions: ["diabetes"], weightKg: 80 });
+    await ada.as.mutation(api.data.addDiaryEntries, { entries: [{ date: "2026-10-19", meal: "Lunch", foodId: "jollof", grams: 300, portionLabel: "1 plate" }] });
+    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    await ada.as.mutation(api.social.send, { conversationId: id, text: "secret hello" });
+
+    const o = await admin.as.query(api.admin.overview, {});
+    expect(o.people).toMatchObject({ accounts: 4, profiles: 2, unfinished: 2, members: 2, withConditions: 1, newThisWeek: 4 });
+    expect(o.active).toMatchObject({ today: 1, week: 1, month: 1 });
+    expect(o.usage30).toMatchObject({ foodLogs: 1, memberMessages: 1, planShares: 0 });
+    expect(o.messaging).toEqual({ chats: 1, blockedChats: 0 });
+    expect(o.trends.signups).toHaveLength(30);
+    expect(o.trends.signups.at(-1)!.count).toBe(4);
+    expect(o.trends.activeMembers.at(-1)!.count).toBe(1);
+
+    const feed = await admin.as.query(api.admin.feed, {});
+    expect(feed.map((f) => f.kind)).toEqual(expect.arrayContaining(["signup", "profile", "chat"]));
+    expect(JSON.stringify(feed)).not.toContain("secret hello");
+    expect(JSON.stringify(o)).not.toContain("secret hello");
+
+    const people = await admin.as.query(api.admin.people, { search: "bis" });
+    expect(people).toMatchObject([{ email: "bisi@example.com", name: "Bisi", role: "consumer", hasCondition: true, lastActiveAt: null }]);
+    const all = await admin.as.query(api.admin.people, {});
+    expect(all.find((p) => p.email === "ada@example.com")!.lastActiveAt).not.toBeNull();
+    expect(all.find((p) => p.email === "half@example.com")).toMatchObject({ name: null, role: null });
+  });
+});

@@ -105,8 +105,8 @@ export const start = mutation({
     const [a, b] = userId < other._id ? [userId, other._id] : [other._id, userId];
     const existing = await ctx.db.query("conversations").withIndex("by_pair", (q) => q.eq("a", a).eq("b", b)).unique();
     if (existing) return existing._id;
-    const now = Date.now();
-    return ctx.db.insert("conversations", { a, b, lastMessageAt: now, aReadAt: now, bReadAt: now });
+    // Nothing read yet, so a message sent in the same millisecond still counts as unread.
+    return ctx.db.insert("conversations", { a, b, lastMessageAt: Date.now(), aReadAt: 0, bReadAt: 0 });
   },
 });
 

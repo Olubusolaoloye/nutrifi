@@ -1,8 +1,8 @@
-import { Send } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { errorText } from "../lib/errors";
 import type { DietitianCard as Card, ThreadMessage } from "../lib/interventions";
 import { Avatar } from "./Layout";
+import { MessageBox } from "./MessageBox";
 
 const time = (iso: string) =>
   new Date(iso).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
@@ -25,9 +25,7 @@ export function Thread({
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => end.current?.scrollIntoView({ block: "nearest" }), [messages.length]);
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!text.trim()) return;
+  const submit = async () => {
     setBusy(true);
     setError(null);
     try {
@@ -55,10 +53,7 @@ export function Thread({
       {disabledReason ? (
         <p className="small muted">{disabledReason}</p>
       ) : (
-        <form className="thread-form" onSubmit={submit}>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label="Message" maxLength={2000} />
-          <button className="btn btn-primary" disabled={busy || !text.trim()} aria-label="Send"><Send size={17} /></button>
-        </form>
+        <MessageBox className="thread-form" value={text} onChange={setText} onSend={submit} busy={busy} placeholder={placeholder} />
       )}
       {error && <p className="small error" role="alert">{error}</p>}
     </div>

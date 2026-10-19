@@ -1,9 +1,10 @@
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Ban, CalendarRange, HeartPulse, MessageCirclePlus, Send, Share2, ShieldCheck, TrendingUp } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, Ban, CalendarRange, HeartPulse, MessageCirclePlus, Share2, ShieldCheck, TrendingUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { MessageBox } from "../components/MessageBox";
 import { PlanCard } from "../components/Social";
 import { Avatar } from "../components/Layout";
 import { PageHeader, SearchBox, Sheet } from "../components/ui";
@@ -179,9 +180,8 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (text.trim() && (await deliver({ text }))) setText("");
+  const submit = async () => {
+    if (await deliver({ text })) setText("");
   };
 
   return (
@@ -221,11 +221,13 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
       {t?.blocked ? (
         <p className="small muted chat-blocked">{t.blockedByMe ? "You blocked this chat. Unblock to send messages." : "You can't send messages in this chat."}</p>
       ) : (
-        <form className="chat-input" onSubmit={submit}>
-          <button type="button" className="icon-btn sm ghost" onClick={() => setPicking(true)} aria-label="Send my meal plan" title="Send my meal plan"><CalendarRange size={17} /></button>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Write a message…" aria-label="Message" maxLength={2000} />
-          <button className="btn btn-primary btn-small" disabled={busy || !text.trim()}><Send size={15} /> Send</button>
-        </form>
+        <MessageBox
+          value={text}
+          onChange={setText}
+          onSend={submit}
+          busy={busy}
+          before={<button type="button" className="icon-btn sm ghost" onClick={() => setPicking(true)} aria-label="Send my meal plan" title="Send my meal plan"><CalendarRange size={17} /></button>}
+        />
       )}
       {error && <p className="small error chat-error" role="alert">{error}</p>}
       {picking && <PickWeek onClose={() => setPicking(false)} onSend={async (plan) => { if (await deliver({ text: "", plan })) setPicking(false); }} />}
