@@ -20,6 +20,8 @@ export interface Profile {
   activity: ActivityLevel;
   goal: Goal;
   conditions: Condition[];
+  /** Public @handle for finding friends (accounts only), without the @. */
+  username?: string;
 }
 
 export interface DiaryEntry {

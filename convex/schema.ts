@@ -31,7 +31,11 @@ export default defineSchema({
     /** Only changed by the server: on submission (pending) and by admins (verified/rejected). */
     verification,
     createdAt: v.number(),
-  }).index("by_user", ["userId"]),
+    /** Public handle, lowercase without the @ (e.g. "devolu"). Unique. Older profiles get one on their next visit. */
+    username: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_username", ["username"]),
 
   verifications: defineTable({
     userId: v.id("users"),
@@ -205,6 +209,15 @@ export default defineSchema({
     plan: v.optional(sharedPlan),
     sentAt: v.number(),
   }).index("by_conversation", ["conversationId", "sentAt"]),
+
+  /** Every admin action (approvals, rejections, payouts): who did what, to whom, and when. Never edited or deleted by the app. */
+  adminLog: defineTable({
+    adminId: v.id("users"),
+    action: v.union(v.literal("verification_approved"), v.literal("verification_rejected"), v.literal("payout_recorded")),
+    subjectId: v.optional(v.id("users")),
+    detail: v.string(),
+    at: v.number(),
+  }),
 
   /** Payouts to dietitians, recorded by admins after a bank transfer. */
   payouts: defineTable({

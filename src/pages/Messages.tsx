@@ -1,10 +1,11 @@
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Ban, CalendarRange, HeartPulse, MessageCirclePlus, Send, Share2, ShieldCheck, TrendingUp } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, Ban, CalendarRange, HeartPulse, MessageCirclePlus, Share2, ShieldCheck, TrendingUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { PlanCard } from "../components/Social";
+import { MessageBox } from "../components/MessageBox";
+import { PeoplePicker, PlanCard } from "../components/Social";
 import { Avatar } from "../components/Layout";
 import { PageHeader, SearchBox, Sheet } from "../components/ui";
 import { errorText } from "../lib/errors";
@@ -49,7 +50,7 @@ function CloudMessages() {
   const activeId = params.get("c");
   const open = (id: string | null) => setParams(id ? { c: id } : {}, { replace: !id });
   const q = query.trim().toLowerCase();
-  const list = (inbox ?? []).filter((c) => !q || c.name.toLowerCase().includes(q));
+  const list = (inbox ?? []).filter((c) => !q || c.name.toLowerCase().includes(q) || (c.username ?? "").includes(q.replace(/^@/, "")));
   const active = inbox?.find((c) => c.id === activeId) ?? null;
 
   return (
@@ -59,11 +60,11 @@ function CloudMessages() {
       </PageHeader>
       <div className={`chat-layout${activeId ? " has-active" : ""}`}>
         <section className="card chat-list">
-          <SearchBox value={query} onChange={setQuery} placeholder="Search chats" />
+          <SearchBox value={query} onChange={setQuery} placeholder="Search chats by name or @username" />
           {inbox === undefined ? (
             <p className="muted small">Loading…</p>
           ) : list.length === 0 ? (
-            <p className="muted small chat-empty">{q ? "No chats match." : "No messages yet. Start one with a friend's email, or send them your meal plan."}</p>
+            <p className="muted small chat-empty">{q ? "No chats match." : "No messages yet. Find a friend by their @username, or send them your meal plan."}</p>
           ) : (
             <ul>
               {list.map((c) => (
@@ -72,7 +73,7 @@ function CloudMessages() {
                     <Avatar name={c.name} />
                     <span className="grow thread-body">
                       <span className="row" style={{ justifyContent: "space-between" }}>
-                        <strong>{c.name}</strong>
+                        <strong>{c.name}{c.username && <span className="muted handle"> @{c.username}</span>}</strong>
                         <span className="muted small">{when(c.lastAt)}</span>
                       </span>
                       <span className="thread-preview">{c.blocked ? "Blocked" : c.lastText ? `${c.lastFromMe ? "You: " : ""}${c.lastText}` : "Say hello 👋"}</span>
@@ -113,33 +114,31 @@ function CloudMessages() {
 }
 
 function NewChat({ onClose, onOpen }: { onClose: () => void; onOpen: (id: string) => void }) {
+  const { profile } = useStore();
   const start = useMutation(api.social.start);
-  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
     <Sheet title="New message" onClose={onClose}>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
+      <PeoplePicker
+        label="Find a friend by username"
+        autoFocus
+        busy={busy}
+        error={error}
+        onPick={async (username) => {
           setBusy(true);
           setError(null);
           try {
-            onOpen(await start({ email }));
+            onOpen(await start({ username }));
           } catch (err) {
             setError(errorText(err));
             setBusy(false);
           }
         }}
-      >
-        <label className="field">
-          <span>Your friend's email</span>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="The email they use for Nutrintel" autoFocus />
-        </label>
-        {error && <p className="small error" role="alert">{error}</p>}
-        <button className="btn btn-primary btn-block" disabled={busy || !email.trim()}>{busy ? "Looking…" : "Start chat"}</button>
-        <p className="small muted center">They need a Nutrintel account. Only you two can see the chat.</p>
-      </form>
+      />
+      {profile?.username && (
+        <p className="small muted center">Your username is <strong>@{profile.username}</strong>. Share it so friends can find you.</p>
+      )}
     </Sheet>
   );
 }
@@ -179,9 +178,8 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
     }
   };
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (text.trim() && (await deliver({ text }))) setText("");
+  const submit = async () => {
+    if (await deliver({ text })) setText("");
   };
 
   return (
@@ -191,7 +189,7 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
         <Avatar name={t?.name ?? "?"} />
         <div className="grow">
           <strong>{t?.name ?? "…"}</strong>
-          <span className="muted small" style={{ display: "block" }}>Nutrintel member</span>
+          <span className="muted small" style={{ display: "block" }}>{t?.username ? `@${t.username}` : "Nutrintel member"}</span>
         </div>
         {t && (!t.blocked || t.blockedByMe) && (
           <button
@@ -221,11 +219,13 @@ function ThreadView({ id, onBack }: { id: string; onBack: () => void }) {
       {t?.blocked ? (
         <p className="small muted chat-blocked">{t.blockedByMe ? "You blocked this chat. Unblock to send messages." : "You can't send messages in this chat."}</p>
       ) : (
-        <form className="chat-input" onSubmit={submit}>
-          <button type="button" className="icon-btn sm ghost" onClick={() => setPicking(true)} aria-label="Send my meal plan" title="Send my meal plan"><CalendarRange size={17} /></button>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Write a message…" aria-label="Message" maxLength={2000} />
-          <button className="btn btn-primary btn-small" disabled={busy || !text.trim()}><Send size={15} /> Send</button>
-        </form>
+        <MessageBox
+          value={text}
+          onChange={setText}
+          onSend={submit}
+          busy={busy}
+          before={<button type="button" className="icon-btn sm ghost" onClick={() => setPicking(true)} aria-label="Send my meal plan" title="Send my meal plan"><CalendarRange size={17} /></button>}
+        />
       )}
       {error && <p className="small error chat-error" role="alert">{error}</p>}
       {picking && <PickWeek onClose={() => setPicking(false)} onSend={async (plan) => { if (await deliver({ text: "", plan })) setPicking(false); }} />}

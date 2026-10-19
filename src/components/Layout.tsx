@@ -23,7 +23,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { canUseWorkbench, useStore } from "../state/store";
 import { useLocalReminders } from "../state/useLocalReminders";
-import { CloudUnreadBadge } from "./Social";
+import { CloudEnsureUsername, CloudUnreadBadge } from "./Social";
 
 function useOnline() {
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -93,6 +93,7 @@ export function Layout() {
 
   return (
     <div className="shell">
+      {mode === "cloud" && <CloudEnsureUsername />}
       <nav className="sidebar" aria-label="Main">
         <div className="nav-brand"><Brand /></div>
         <NavLink to="/add" className="btn btn-primary sidebar-cta"><Plus size={18} /> Log food</NavLink>

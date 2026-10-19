@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { checkText, getProfile, requireAdmin, requireUser } from "./helpers";
+import { checkText, getProfile, logAdminAction, requireAdmin, requireUser } from "./helpers";
 
 /** Short-lived upload URL for a licence or student ID document. */
 export const generateUploadUrl = mutation({
@@ -60,12 +60,16 @@ export const listPending = query({
 export const review = mutation({
   args: { id: v.id("verifications"), decision: v.union(v.literal("verified"), v.literal("rejected")), note: v.optional(v.string()) },
   handler: async (ctx, { id, decision, note }) => {
-    await requireAdmin(ctx);
+    const adminId = await requireAdmin(ctx);
     const row = await ctx.db.get(id);
     if (!row || row.status !== "pending") throw new ConvexError("This request was already handled.");
     if (note) checkText(note, 300, "Note");
     await ctx.db.patch(id, { status: decision, reviewedAt: Date.now(), reviewerNote: note?.trim() || undefined });
     const profile = await getProfile(ctx, row.userId);
     if (profile) await ctx.db.patch(profile._id, { verification: decision });
+    await logAdminAction(
+      ctx, adminId, decision === "verified" ? "verification_approved" : "verification_rejected", row.userId,
+      `${profile?.name ?? "A member"} as a ${row.role} (${row.credential})${note?.trim() ? ` · note: ${note.trim()}` : ""}`,
+    );
   },
 });

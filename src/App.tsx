@@ -1,8 +1,8 @@
 import { useConvexAuth } from "convex/react";
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { AddFood } from "./pages/AddFood";
-import { Admin } from "./pages/Admin";
 import { ClientPage, Clients } from "./pages/Clients";
 import { Auth } from "./pages/Auth";
 import { Calendar } from "./pages/Calendar";
@@ -23,6 +23,9 @@ import { RecipeDetail, Recipes } from "./pages/Recipes";
 import { Reminders } from "./pages/Reminders";
 import { Workbench } from "./pages/Workbench";
 import { useStore } from "./state/store";
+
+/** Admin pages load only when an admin opens them, so members never download them. */
+const Admin = lazy(() => import("./pages/Admin").then((m) => ({ default: m.Admin })));
 
 /** The signed-in app (sidebar layout). */
 function appRoutes(isAdmin: boolean) {
@@ -50,7 +53,7 @@ function appRoutes(isAdmin: boolean) {
       <Route path="/my-programmes/:id" element={<MyProgramme />} />
       <Route path="/clients" element={<Clients />} />
       <Route path="/clients/:id" element={<ClientPage />} />
-      {isAdmin && <Route path="/admin" element={<Admin />} />}
+      {isAdmin && <Route path="/admin" element={<Suspense fallback={<p className="page muted">Loading admin…</p>}><Admin /></Suspense>} />}
     </Route>
   );
 }

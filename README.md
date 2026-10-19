@@ -33,12 +33,12 @@ npm run build      # production build in dist/
 | Sign in / create account / forgot password (cloud mode) | `src/pages/Auth.tsx` |
 | Paid programmes: diabetes, blood pressure, weight loss, PCOS, kidney, pregnancy, child growth, sports, one-off consult. Choose a verified dietitian, intake with consent, Paystack checkout, then your dietitian's target, plan, approved supplements, weekly check-ins and chat | `src/pages/Programmes.tsx`, `src/data/programmes.ts`, `convex/interventions.ts`, `convex/payments.ts` |
 | Dietitian client tools: client list with adherence flags, client detail (diary, water, weight, notes, intake), set target (Mifflin suggestion + macro presets), build and send a week plan, approve supplements, check-ins, messages, programmes & prices, earnings | `src/pages/Clients.tsx`, `convex/clients.ts` |
-| Admin: verification queue and dietitian payouts | `src/pages/Admin.tsx` |
+| Admin portal: live overview (accounts, active members, new sign-ups and activity charts, programmes and revenue, messaging and reminders), people list with search, activity feed, verification queue and dietitian payouts. Counts only, never message text or food logs | `src/pages/Admin.tsx`, `src/pages/AdminReview.tsx`, `convex/admin.ts` |
 | Grocery list built from the plan, with ₦ estimates and purchased status | `src/pages/Grocery.tsx` |
 | Calendar of planned meals, activities and appointments | `src/pages/Calendar.tsx` |
 | Exercise log with calories from MET values | `src/pages/Exercises.tsx`, `src/lib/nutrition/activity.ts` |
 | Health insights (featured, popular, tags, related articles) | `src/pages/Learn.tsx`, `src/data/articles.ts` |
-| Messages between members (with an account): chat by email, send a week of your meal plan that a friend adds to their own plan in one tap, block | `src/pages/Messages.tsx`, `convex/social.ts` |
+| Messages between members (with an account): every member has an @username (made from their name, changeable on Me); find friends by username as you type, send a week of your meal plan that a friend adds to their own plan in one tap, block | `src/pages/Messages.tsx`, `convex/social.ts` |
 | Share your meal plan or health journey: WhatsApp text, a story-sized image for Instagram / WhatsApp Status (phone share menu), save image, copy text, or send to a Nutrintel friend. Weight is only shared if you switch it on | `src/components/ShareSheet.tsx`, `src/lib/share.ts`, `src/lib/shareImage.ts` |
 
 **Hybrid rule:** consumers see one simple daily target. People who report a medical condition, and anyone under 18, are sent to a dietitian instead of getting a target. Only verified students and dietitians can use the full Workbench.

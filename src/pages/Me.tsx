@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { AccountCard, CloudDeleteCard, ImportCard, VerificationCard } from "../components/CloudPanels";
+import { UsernameCard } from "../components/Social";
 import { Avatar, NAV_ENTRIES } from "../components/Layout";
 import { Card, Disclaimer, Locked } from "../components/ui";
 import { CONDITION_LABEL, PAL } from "../lib/nutrition";
@@ -25,6 +26,7 @@ export function Me() {
         <div className="page-head-title">
         <h1>{profile.name}</h1>
         <p className="muted" style={{ margin: 0 }}>
+          {cloud && profile.username && <span className="handle">@{profile.username} · </span>}
           {ROLE_LABEL[profile.role]}
           {profile.verification === "verified" && <span className="badge badge-ok"> ✓ Verified</span>}
           {profile.verification === "pending" && <span className="badge"> Verification pending</span>}
@@ -34,6 +36,7 @@ export function Me() {
       </header>
 
       {cloud && <ImportCard />}
+      {cloud && <UsernameCard />}
 
       <section className="more-grid" aria-label="All features">
         {NAV_ENTRIES.filter((n) => n.to !== "/home").map((n) => (

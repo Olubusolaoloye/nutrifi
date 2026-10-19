@@ -482,24 +482,23 @@ describe("member messages", () => {
   }
   const PLAN = { title: "Week of 20 Oct", items: [{ day: 0, meal: "Breakfast" as const, recipeId: "akara-pap" }, { day: 2, meal: "Dinner" as const, recipeId: "egusi-eba", portion: 1.5 }] };
 
-  it("finds a member by email and keeps one chat per pair", async () => {
+  it("finds a member by @username and keeps one chat per pair", async () => {
     const t = convexTest(schema, modules);
     const ada = await member(t, "ada@example.com", "Ada");
     const bisi = await member(t, "bisi@example.com", "Bisi");
-    const id = await ada.as.mutation(api.social.start, { email: " Bisi@Example.com " });
-    expect(await bisi.as.mutation(api.social.start, { email: "ada@example.com" })).toBe(id);
-    await expect(ada.as.mutation(api.social.start, { email: "nobody@example.com" })).rejects.toThrow(/couldn't find/);
-    await expect(ada.as.mutation(api.social.start, { email: "ada@example.com" })).rejects.toThrow(/your own email/);
-    // Signed up but never finished the profile: treated as not found.
-    await signedIn(t, "half@example.com");
-    await expect(ada.as.mutation(api.social.start, { email: "half@example.com" })).rejects.toThrow(/couldn't find/);
+    const id = await ada.as.mutation(api.social.start, { username: " @Bisi " });
+    expect(await bisi.as.mutation(api.social.start, { username: "ada" })).toBe(id);
+    await expect(ada.as.mutation(api.social.start, { username: "nobody" })).rejects.toThrow(/no Nutrintel member/);
+    await expect(ada.as.mutation(api.social.start, { username: "ada" })).rejects.toThrow(/your own username/);
+    // Email addresses no longer find anyone.
+    await expect(ada.as.mutation(api.social.start, { username: "bisi@example.com" })).rejects.toThrow(/no Nutrintel member/);
   });
 
   it("sends text and a meal plan, counts unread and marks read", async () => {
     const t = convexTest(schema, modules);
     const ada = await member(t, "ada@example.com", "Ada");
     const bisi = await member(t, "bisi@example.com", "Bisi");
-    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    const id = await ada.as.mutation(api.social.start, { username: "bisi" });
     await ada.as.mutation(api.social.send, { conversationId: id, text: "Try my plan!" });
     await ada.as.mutation(api.social.send, { conversationId: id, text: "", plan: PLAN });
 
@@ -518,7 +517,7 @@ describe("member messages", () => {
     const ada = await member(t, "ada@example.com", "Ada");
     await member(t, "bisi@example.com", "Bisi");
     const eve = await member(t, "eve@example.com", "Eve");
-    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    const id = await ada.as.mutation(api.social.start, { username: "bisi" });
     await expect(eve.as.query(api.social.thread, { conversationId: id })).rejects.toThrow(/Not found/);
     await expect(eve.as.mutation(api.social.send, { conversationId: id, text: "hi" })).rejects.toThrow(/Not found/);
     await expect(ada.as.mutation(api.social.send, { conversationId: id, text: "", plan: { title: "x", items: [{ day: 7, meal: "Lunch", recipeId: "moimoi" }] } })).rejects.toThrow(/Plan day/);
@@ -529,7 +528,7 @@ describe("member messages", () => {
     const t = convexTest(schema, modules);
     const ada = await member(t, "ada@example.com", "Ada");
     const bisi = await member(t, "bisi@example.com", "Bisi");
-    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    const id = await ada.as.mutation(api.social.start, { username: "bisi" });
     await bisi.as.mutation(api.social.setBlocked, { conversationId: id, blocked: true });
     await expect(ada.as.mutation(api.social.send, { conversationId: id, text: "hello?" })).rejects.toThrow(/can't send/);
     await expect(bisi.as.mutation(api.social.send, { conversationId: id, text: "hi" })).rejects.toThrow(/can't send/);
@@ -543,10 +542,133 @@ describe("member messages", () => {
     const t = convexTest(schema, modules);
     const ada = await member(t, "ada@example.com", "Ada");
     const bisi = await member(t, "bisi@example.com", "Bisi");
-    const id = await ada.as.mutation(api.social.start, { email: "bisi@example.com" });
+    const id = await ada.as.mutation(api.social.start, { username: "bisi" });
     await ada.as.mutation(api.social.send, { conversationId: id, text: "hi" });
     await ada.as.mutation(api.data.deleteMyData, {});
     expect(await bisi.as.query(api.social.inbox, {})).toEqual([]);
     expect(await t.run((ctx) => ctx.db.query("directMessages").collect())).toEqual([]);
+  });
+});
+
+describe("admin dashboard", () => {
+  it("is admin-only", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await signedIn(t, "ada@example.com");
+    await as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 70 });
+    await expect(as.query(api.admin.overview, {})).rejects.toThrow(/Admins only/);
+    await expect(as.query(api.admin.feed, {})).rejects.toThrow(/Admins only/);
+    await expect(as.query(api.admin.people, {})).rejects.toThrow(/Admins only/);
+  });
+
+  it("counts people, activity and messages, without message text", async () => {
+    const t = convexTest(schema, modules);
+    const admin = await signedIn(t, "admin@nutrintel.ng");
+    const ada = await signedIn(t, "ada@example.com");
+    const bisi = await signedIn(t, "bisi@example.com");
+    await signedIn(t, "half@example.com"); // never finished onboarding
+    await ada.as.mutation(api.profile.create, { ...PROFILE, name: "Ada", role: "consumer", weightKg: 70 });
+    await bisi.as.mutation(api.profile.create, { ...PROFILE, name: "Bisi", role: "consumer", conditions: ["diabetes"], weightKg: 80 });
+    await ada.as.mutation(api.data.addDiaryEntries, { entries: [{ date: "2026-10-19", meal: "Lunch", foodId: "jollof", grams: 300, portionLabel: "1 plate" }] });
+    const id = await ada.as.mutation(api.social.start, { username: "bisi" });
+    await ada.as.mutation(api.social.send, { conversationId: id, text: "secret hello" });
+
+    const o = await admin.as.query(api.admin.overview, {});
+    expect(o.people).toMatchObject({ accounts: 4, profiles: 2, unfinished: 2, members: 2, withConditions: 1, newThisWeek: 4 });
+    expect(o.active).toMatchObject({ today: 1, week: 1, month: 1 });
+    expect(o.usage30).toMatchObject({ foodLogs: 1, memberMessages: 1, planShares: 0 });
+    expect(o.messaging).toEqual({ chats: 1, blockedChats: 0 });
+    expect(o.trends.signups).toHaveLength(30);
+    expect(o.trends.signups.at(-1)!.count).toBe(4);
+    expect(o.trends.activeMembers.at(-1)!.count).toBe(1);
+
+    const feed = await admin.as.query(api.admin.feed, {});
+    expect(feed.map((f) => f.kind)).toEqual(expect.arrayContaining(["signup", "profile", "chat"]));
+    expect(JSON.stringify(feed)).not.toContain("secret hello");
+    expect(JSON.stringify(o)).not.toContain("secret hello");
+
+    const people = await admin.as.query(api.admin.people, { search: "bis" });
+    expect(people).toMatchObject([{ email: "bisi@example.com", name: "Bisi", role: "consumer", hasCondition: true, lastActiveAt: null }]);
+    const all = await admin.as.query(api.admin.people, {});
+    expect(all.find((p) => p.email === "ada@example.com")!.lastActiveAt).not.toBeNull();
+    expect(all.find((p) => p.email === "half@example.com")).toMatchObject({ name: null, role: null });
+  });
+});
+
+describe("admin audit log", () => {
+  it("records approvals, rejections and payouts with who did them, and only admins can read it", async () => {
+    const t = convexTest(schema, modules);
+    const student = await signedIn(t, "tunde@unn.edu.ng");
+    const admin = await signedIn(t, "admin@nutrintel.ng");
+    await student.as.mutation(api.profile.create, { ...PROFILE, name: "Tunde", role: "student", weightKg: 72, credential: "UNN 2022/1234" });
+    const [req] = await admin.as.query(api.verification.listPending, {});
+    await admin.as.mutation(api.verification.review, { id: req._id, decision: "rejected", note: "Matric not found" });
+    await student.as.mutation(api.verification.submit, { credential: "UNN 2022/12345" });
+    const [again] = await admin.as.query(api.verification.listPending, {});
+    await admin.as.mutation(api.verification.review, { id: again._id, decision: "verified" });
+
+    const log = await admin.as.query(api.admin.log, {});
+    expect(log.map((l) => [l.action, l.by])).toEqual([
+      ["verification_approved", "admin@nutrintel.ng"],
+      ["verification_rejected", "admin@nutrintel.ng"],
+    ]);
+    expect(log[1].detail).toBe("Tunde as a student (UNN 2022/1234) · note: Matric not found");
+    await expect(student.as.query(api.admin.log, {})).rejects.toThrow(/Admins only/);
+  });
+
+  it("logs a payout only when it's recorded", async () => {
+    const { t, d, enrolmentId } = await paidSetup();
+    // Make the demo enrolment a real payment so the dietitian is owed money.
+    await t.run((ctx) => ctx.db.patch(enrolmentId, { demoPayment: undefined }));
+    const admin = await signedIn(t, "admin@nutrintel.ng");
+    await expect(admin.as.mutation(api.clients.recordPayout, { dietitianId: d.userId, amountNaira: 10_000_000, reference: "TRF0" })).rejects.toThrow(/balance/);
+    await admin.as.mutation(api.clients.recordPayout, { dietitianId: d.userId, amountNaira: 1000, reference: "TRF1" });
+    expect(await admin.as.query(api.admin.log, {})).toMatchObject([{ action: "payout_recorded", detail: "₦1,000 to Dr Funke · ref TRF1", by: "admin@nutrintel.ng" }]);
+  });
+});
+
+describe("usernames", () => {
+  async function member(t: ReturnType<typeof convexTest>, email: string, name: string) {
+    const m = await signedIn(t, email);
+    await m.as.mutation(api.profile.create, { ...PROFILE, name, role: "consumer", weightKg: 70 });
+    return m;
+  }
+  const usernameOf = async (m: Awaited<ReturnType<typeof member>>) => (await m.as.query(api.me.snapshot, {}))!.profile!.username;
+
+  it("are made from the name, unique, and changeable within the rules", async () => {
+    const t = convexTest(schema, modules);
+    const a = await member(t, "a@example.com", "Ada Okafor");
+    const b = await member(t, "b@example.com", "Ada Okafor");
+    const c = await member(t, "c@example.com", "Ọ̀lá 12");
+    expect(await usernameOf(a)).toBe("adaokafor");
+    expect(await usernameOf(b)).toMatch(/^adaokafor\d+$/);
+    expect(await usernameOf(c)).toBe("ola12");
+
+    expect(await a.as.query(api.profile.usernameAvailable, { username: "@DevOlu" })).toBeNull();
+    expect(await a.as.query(api.profile.usernameAvailable, { username: (await usernameOf(b))! })).toMatch(/taken/);
+    expect(await a.as.query(api.profile.usernameAvailable, { username: "adaokafor" })).toBeNull(); // already mine
+    expect(await a.as.query(api.profile.usernameAvailable, { username: "ab" })).toMatch(/3 to 20/);
+    expect(await a.as.query(api.profile.usernameAvailable, { username: "1ada" })).toMatch(/Start with a letter/);
+    expect(await a.as.query(api.profile.usernameAvailable, { username: "ada..o" })).toMatch(/Dots/);
+    expect(await a.as.query(api.profile.usernameAvailable, { username: "ad min" })).toMatch(/only letters/);
+    expect(await a.as.query(api.profile.usernameAvailable, { username: "Nutrintel" })).toMatch(/reserved/);
+
+    expect(await a.as.mutation(api.profile.setUsername, { username: "@DevOlu" })).toBe("devolu");
+    await expect(b.as.mutation(api.profile.setUsername, { username: "devolu" })).rejects.toThrow(/taken/);
+    expect(await b.as.query(api.social.findPeople, { q: "@dev" })).toEqual([{ username: "devolu", name: "Ada Okafor", role: "consumer", verified: false }]);
+    expect(await b.as.query(api.social.findPeople, { q: "d" })).toEqual([]);
+    // You don't find yourself.
+    expect(await a.as.query(api.social.findPeople, { q: "dev" })).toEqual([]);
+  });
+
+  it("older profiles get one on their next visit", async () => {
+    const t = convexTest(schema, modules);
+    const a = await member(t, "a@example.com", "Bisi");
+    await t.run(async (ctx) => {
+      const p = await ctx.db.query("profiles").first();
+      await ctx.db.patch(p!._id, { username: undefined });
+    });
+    expect(await usernameOf(a)).toBeUndefined();
+    expect(await a.as.mutation(api.profile.ensureUsername, {})).toBe("bisi");
+    expect(await a.as.mutation(api.profile.ensureUsername, {})).toBe("bisi");
   });
 });

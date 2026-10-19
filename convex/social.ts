@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { checkRange, checkText, getProfile, requireUser } from "./helpers";
+import { normalizeUsername, profileByUsername } from "./usernames";
 import { sharedPlan } from "./validators";
 
 type Ctx = QueryCtx | MutationCtx;
@@ -12,11 +13,14 @@ const MAX_PLAN_ITEMS = 28;
 /** At most this many messages a minute from one person in one chat. */
 const MAX_PER_MINUTE = 20;
 const THREAD_LIMIT = 200;
-const NOT_FOUND = "We couldn't find a Nutrintel member with that email. Check the spelling, or invite them to join.";
+const NOT_FOUND = "There's no Nutrintel member with that username. Check the spelling, or ask them for their @username.";
 
 const otherOf = (c: Doc<"conversations">, userId: Id<"users">) => (c.a === userId ? c.b : c.a);
 const readKey = (c: Doc<"conversations">, userId: Id<"users">) => (c.a === userId ? "aReadAt" : "bReadAt") as "aReadAt" | "bReadAt";
-const nameOf = async (ctx: Ctx, userId: Id<"users">) => (await getProfile(ctx, userId))?.name ?? "Nutrintel member";
+const whoIs = async (ctx: Ctx, userId: Id<"users">) => {
+  const p = await getProfile(ctx, userId);
+  return { name: p?.name ?? "Nutrintel member", username: p?.username ?? null };
+};
 
 /** Load a conversation the signed-in user is part of. */
 async function conversationFor(ctx: Ctx, id: Id<"conversations">, userId: Id<"users">) {
@@ -51,7 +55,7 @@ export const inbox = query({
         const last = await ctx.db.query("directMessages").withIndex("by_conversation", (q) => q.eq("conversationId", c._id)).order("desc").first();
         return {
           id: c._id,
-          name: await nameOf(ctx, otherOf(c, userId)),
+          ...(await whoIs(ctx, otherOf(c, userId))),
           lastText: last ? (last.plan && !last.text ? `📅 ${last.plan.title}` : last.text) : "",
           lastFromMe: last?.senderId === userId,
           lastAt: new Date(c.lastMessageAt).toISOString(),
@@ -77,7 +81,7 @@ export const thread = query({
       .take(THREAD_LIMIT);
     return {
       id: c._id,
-      name: await nameOf(ctx, otherOf(c, userId)),
+      ...(await whoIs(ctx, otherOf(c, userId))),
       blocked: !!c.blockedBy,
       blockedByMe: c.blockedBy === userId,
       messages: rows.reverse().map((m) => ({
@@ -91,22 +95,40 @@ export const thread = query({
   },
 });
 
-/** Opens (or finds) a chat with the member who signed up with `email`. */
+/** Members whose username starts with what was typed (at least 2 characters), for starting a chat. */
+export const findPeople = query({
+  args: { q: v.string() },
+  handler: async (ctx, { q }) => {
+    const userId = await requireUser(ctx);
+    const prefix = normalizeUsername(q);
+    if (prefix.length < 2 || !/^[a-z0-9._]+$/.test(prefix)) return [];
+    const rows = await ctx.db
+      .query("profiles")
+      .withIndex("by_username", (x) => x.gte("username", prefix).lt("username", `${prefix}\uffff`))
+      .take(9);
+    return rows
+      .filter((p) => p.userId !== userId)
+      .slice(0, 8)
+      .map((p) => ({ username: p.username!, name: p.name, role: p.role, verified: p.verification === "verified" }));
+  },
+});
+
+/** Opens (or finds) a chat with the member who has this @username. */
 export const start = mutation({
-  args: { email: v.string() },
-  handler: async (ctx, { email }) => {
+  args: { username: v.string() },
+  handler: async (ctx, { username }) => {
     const userId = await requireUser(ctx);
     if (!(await getProfile(ctx, userId))) throw new ConvexError("Finish setting up your profile first.");
-    const clean = email.trim().toLowerCase();
-    checkText(clean, 254, "Email");
-    const other = await ctx.db.query("users").withIndex("email", (q) => q.eq("email", clean)).first();
-    if (other?._id === userId) throw new ConvexError("That's your own email. Enter a friend's email instead.");
-    if (!other || !(await getProfile(ctx, other._id))) throw new ConvexError(NOT_FOUND);
-    const [a, b] = userId < other._id ? [userId, other._id] : [other._id, userId];
+    const u = normalizeUsername(username);
+    checkText(u, 40, "Username");
+    const other = u ? await profileByUsername(ctx, u) : null;
+    if (!other) throw new ConvexError(NOT_FOUND);
+    if (other.userId === userId) throw new ConvexError("That's your own username. Enter a friend's instead.");
+    const [a, b] = userId < other.userId ? [userId, other.userId] : [other.userId, userId];
     const existing = await ctx.db.query("conversations").withIndex("by_pair", (q) => q.eq("a", a).eq("b", b)).unique();
     if (existing) return existing._id;
-    const now = Date.now();
-    return ctx.db.insert("conversations", { a, b, lastMessageAt: now, aReadAt: now, bReadAt: now });
+    // Nothing read yet, so a message sent in the same millisecond still counts as unread.
+    return ctx.db.insert("conversations", { a, b, lastMessageAt: Date.now(), aReadAt: 0, bReadAt: 0 });
   },
 });
 

@@ -3,7 +3,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
-import { checkDate, checkRange, checkText, getProfile, requireAdmin } from "./helpers";
+import { checkDate, checkRange, checkText, getProfile, logAdminAction, requireAdmin } from "./helpers";
 import { dietitianCard, enrolmentFor, lagosToday, requireDietitian, sideRows, threadFor } from "./interventions";
 import { dietitianTarget, meal } from "./validators";
 import { LANGUAGES, programmeById } from "../src/data/programmes";
@@ -290,6 +290,8 @@ export const recordPayout = mutation({
     if (!reference.trim()) throw new ConvexError("Add the bank transfer reference.");
     checkText(reference, 100, "Reference");
     await ctx.db.insert("payouts", { dietitianId, amountNaira, reference: reference.trim(), paidAt: Date.now(), recordedBy: adminId });
+    const name = (await getProfile(ctx, dietitianId))?.name ?? "A dietitian";
+    await logAdminAction(ctx, adminId, "payout_recorded", dietitianId, `₦${amountNaira.toLocaleString("en-NG")} to ${name} · ref ${reference.trim()}`);
   },
 });
 
