@@ -15,6 +15,7 @@ import {
   planPrefs,
   profileFields,
   reminderSettings,
+  sharedPlan,
   role,
   verification,
 } from "./validators";
@@ -182,6 +183,28 @@ export default defineSchema({
     text: v.string(),
     sentAt: v.number(),
   }).index("by_enrolment", ["enrolmentId"]),
+
+  /** Member-to-member chats. a < b (by id) so each pair has one conversation. */
+  conversations: defineTable({
+    a: v.id("users"),
+    b: v.id("users"),
+    lastMessageAt: v.number(),
+    aReadAt: v.number(),
+    bReadAt: v.number(),
+    /** Set when one side blocks the other: no new messages either way. */
+    blockedBy: v.optional(v.id("users")),
+  })
+    .index("by_pair", ["a", "b"])
+    .index("by_a", ["a", "lastMessageAt"])
+    .index("by_b", ["b", "lastMessageAt"]),
+
+  directMessages: defineTable({
+    conversationId: v.id("conversations"),
+    senderId: v.id("users"),
+    text: v.string(),
+    plan: v.optional(sharedPlan),
+    sentAt: v.number(),
+  }).index("by_conversation", ["conversationId", "sentAt"]),
 
   /** Payouts to dietitians, recorded by admins after a bank transfer. */
   payouts: defineTable({
