@@ -33,7 +33,7 @@ export async function dietitianCard(ctx: Ctx, dietitianId: Id<"users">): Promise
   ]);
   return {
     id: dietitianId,
-    name: profile?.name ?? "Nutrifi dietitian",
+    name: profile?.name ?? "Nutrintel dietitian",
     bio: dp?.bio ?? "",
     languages: dp?.languages ?? ["English"],
     yearsExperience: dp?.yearsExperience ?? 0,
@@ -53,7 +53,7 @@ export async function enrolmentFor(ctx: Ctx, id: Id<"enrolments">, userId: Id<"u
 export async function threadFor(ctx: Ctx, enrolmentId: Id<"enrolments">, viewerId: Id<"users">): Promise<ThreadMessage[]> {
   const rows = await ctx.db.query("messages").withIndex("by_enrolment", (q) => q.eq("enrolmentId", enrolmentId)).collect();
   const names = new Map<string, string>();
-  for (const id of new Set(rows.map((r) => r.senderId))) names.set(id, (await getProfile(ctx, id))?.name ?? "Nutrifi member");
+  for (const id of new Set(rows.map((r) => r.senderId))) names.set(id, (await getProfile(ctx, id))?.name ?? "Nutrintel member");
   return rows.map((m) => ({ id: m._id, fromMe: m.senderId === viewerId, senderName: names.get(m.senderId)!, text: m.text, sentAt: new Date(m.sentAt).toISOString() }));
 }
 

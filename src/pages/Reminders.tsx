@@ -77,7 +77,7 @@ export function Reminders() {
               <span className="muted small">now</span>
             </div>
             <div className="wa-preview">
-              <p className="small">Hi {first}, a reminder from Nutrifi: Lunch time 🍽️ {previewBody}</p>
+              <p className="small">Hi {first}, a reminder from Nutrintel: Lunch time 🍽️ {previewBody}</p>
               <span className="wa-time">13:00 ✓✓</span>
             </div>
           </div>

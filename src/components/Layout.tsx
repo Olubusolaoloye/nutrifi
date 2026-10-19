@@ -42,7 +42,7 @@ function useOnline() {
 export function Brand() {
   return (
     <Link to="/home" className="brand">
-      <img src="/icon.svg" alt="" width={32} height={32} /> Nutrifi
+      <img src="/icon.svg" alt="" width={32} height={32} /> Nutrintel
     </Link>
   );
 }

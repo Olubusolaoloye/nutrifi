@@ -35,9 +35,9 @@ const THREADS: Thread[] = [
     ],
   },
   {
-    id: "support", name: "Nutrifi support", role: "Help & feedback", initials: "N", tone: "var(--tile-protein)", time: "Mon", unread: 0,
+    id: "support", name: "Nutrintel support", role: "Help & feedback", initials: "N", tone: "var(--tile-protein)", time: "Mon", unread: 0,
     about: "Questions about your account, payments or the app.",
-    messages: [{ from: "them", text: "Welcome to Nutrifi! Messaging with verified dietitians is coming with paid interventions.", time: "10:00 AM" }],
+    messages: [{ from: "them", text: "Welcome to Nutrintel! Messaging with verified dietitians is coming with paid interventions.", time: "10:00 AM" }],
   },
 ];
 
@@ -111,7 +111,7 @@ export function Messages() {
           <span className="tag tag-breakfast">{desktopActive.role}</span>
           <h3>About</h3>
           <p className="small muted">{desktopActive.about}</p>
-          <p className="small row"><ShieldCheck size={15} aria-hidden /> Every Nutrifi dietitian's licence is verified.</p>
+          <p className="small row"><ShieldCheck size={15} aria-hidden /> Every Nutrintel dietitian's licence is verified.</p>
         </aside>
       </div>
     </div>

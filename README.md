@@ -1,8 +1,8 @@
-# Nutrifi
+# Nutrintel
 
-Eat well. Move more. Feel good. Nutrifi is a nutrition and fitness web app (a mobile-first React PWA), starting in Nigeria.
+Eat well. Move more. Feel good. Nutrintel is a nutrition and fitness web app (a mobile-first React PWA), starting in Nigeria.
 
-- [`NUTRIFI_STRATEGY.md`](NUTRIFI_STRATEGY.md): product strategy and roadmap
+- [`NUTRINTEL_STRATEGY.md`](NUTRINTEL_STRATEGY.md): product strategy and roadmap
 - [`MVP_DESIGN_PROMPT.md`](MVP_DESIGN_PROMPT.md): UI/UX design brief for the MVP prototype
 
 ## Run it

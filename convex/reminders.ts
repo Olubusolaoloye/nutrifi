@@ -13,7 +13,7 @@ const MAX_ATTEMPTS = 5;
 const LOG_KEEP_MS = 3 * 24 * 3600_000;
 
 export const whatsappConfigured = () =>
-  !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && (process.env.WHATSAPP_TEMPLATE ?? "nutrifi_reminder"));
+  !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && (process.env.WHATSAPP_TEMPLATE ?? "nutrintel_reminder"));
 
 /** Which channels the server can send on. Public: the app needs the push key before signing in to settings. */
 export const config = query({
@@ -137,7 +137,7 @@ export const sendTest = mutation({
       throw new ConvexError("Test sent. Please wait a minute before sending another.");
     }
     await ctx.db.insert("reminderLog", { userId, key, sentAt: Date.now() });
-    const msg: ReminderMessage = { key, title: "Nutrifi reminders are on ✅", body: "This is how your reminders will look.", url: "/reminders" };
+    const msg: ReminderMessage = { key, title: "Nutrintel reminders are on ✅", body: "This is how your reminders will look.", url: "/reminders" };
     const delivery = await deliveryFor(ctx, userId, [msg], { ignoreChannelSwitches: true });
     if (!delivery) throw new ConvexError("Turn on notifications on this device or confirm your WhatsApp number first.");
     await ctx.scheduler.runAfter(0, internal.notify.deliver, { deliveries: [delivery] });

@@ -91,7 +91,7 @@ export function Me() {
         <button
           className="btn btn-danger"
           onClick={() => {
-            if (confirm("Delete all your Nutrifi data on this device?")) {
+            if (confirm("Delete all your Nutrintel data on this device?")) {
               void resetAll().then(() => {
                 clearInterventionsPreview();
                 window.location.assign("/");

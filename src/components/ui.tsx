@@ -177,7 +177,7 @@ export function MealTag({ meal }: { meal: Meal }) {
 export function Disclaimer() {
   return (
     <p className="disclaimer">
-      Nutrifi supports healthy eating but does not replace advice from your doctor or dietitian.
+      Nutrintel supports healthy eating but does not replace advice from your doctor or dietitian.
     </p>
   );
 }

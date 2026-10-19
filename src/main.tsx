@@ -6,7 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { ConvexStoreProvider } from "./state/cloudStore";
 import { CloudInterventionsProvider, PreviewInterventionsProvider } from "./state/interventions";
-import { LocalStoreProvider } from "./state/store";
+import { LocalStoreProvider, migrateOldStorageKeys } from "./state/store";
 import "./styles.css";
 
 /** Set VITE_CONVEX_URL to use accounts and the cloud database; otherwise data stays on the device. */
@@ -28,6 +28,8 @@ function Providers({ children }: { children: ReactNode }) {
     </ConvexAuthProvider>
   );
 }
+
+migrateOldStorageKeys();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

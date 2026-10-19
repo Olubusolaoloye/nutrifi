@@ -25,7 +25,7 @@ async function signedIn(t: ReturnType<typeof convexTest>, email: string) {
   return { userId, as: t.withIdentity({ subject: `${userId}|${sessionId}` }) };
 }
 
-beforeEach(() => vi.stubEnv("ADMIN_EMAILS", "admin@nutrifi.ng"));
+beforeEach(() => vi.stubEnv("ADMIN_EMAILS", "admin@nutrintel.ng"));
 afterEach(() => vi.unstubAllEnvs());
 
 describe("accounts and profile", () => {
@@ -71,7 +71,7 @@ describe("verification", () => {
   it("an admin approves or rejects, and the profile follows", async () => {
     const t = convexTest(schema, modules);
     const student = await signedIn(t, "tunde@unn.edu.ng");
-    const admin = await signedIn(t, "admin@nutrifi.ng");
+    const admin = await signedIn(t, "admin@nutrintel.ng");
     await student.as.mutation(api.profile.create, { ...PROFILE, role: "student", weightKg: 72, credential: "UNN 2022/1234" });
 
     const queue = await admin.as.query(api.verification.listPending, {});
@@ -459,7 +459,7 @@ describe("client tools", () => {
   it("doesn't count demo payments as earnings, and admins record payouts up to the balance", async () => {
     const { t, d } = await paidSetup();
     expect((await d.as.query(api.clients.myPractice, {})).earnings).toMatchObject({ grossNaira: 0, activeClients: 1 });
-    const admin = await signedIn(t, "admin@nutrifi.ng");
+    const admin = await signedIn(t, "admin@nutrintel.ng");
     await expect(admin.as.mutation(api.clients.recordPayout, { dietitianId: d.userId, amountNaira: 100, reference: "TRF1" })).rejects.toThrow(/balance/);
     await expect(d.as.query(api.clients.payoutsOverview, {})).rejects.toThrow(/Admins only/);
   });

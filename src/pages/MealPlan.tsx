@@ -209,7 +209,7 @@ export function MealPlan() {
         })}
       </div>
       <SampleNotice>
-        Plans use Nutrifi's sample recipes and estimated ₦ prices. A plan from your dietitian always comes first.
+        Plans use Nutrintel's sample recipes and estimated ₦ prices. A plan from your dietitian always comes first.
       </SampleNotice>
 
       {showPrefs && <PrefsSheet prefs={planPrefs} onSave={updatePlanPrefs} onClose={() => setShowPrefs(false)} />}

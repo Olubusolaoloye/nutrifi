@@ -59,7 +59,7 @@ function Splash() {
   return (
     <div className="splash" role="status" aria-live="polite">
       <img src="/icon.svg" alt="" width={56} height={56} />
-      <span className="muted small">Loading Nutrifi…</span>
+      <span className="muted small">Loading Nutrintel…</span>
     </div>
   );
 }

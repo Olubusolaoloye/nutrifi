@@ -72,3 +72,20 @@ describe("activity energy", () => {
     expect(() => activityKcal(3.5, 0, 30)).toThrow(RangeError);
   });
 });
+
+describe("storage migration after the rename", () => {
+  it("moves old nutrifi: keys to nutrintel: without overwriting newer data", async () => {
+    const { migrateOldStorageKeys } = await import("../state/store");
+    const data = new Map<string, string>([["nutrifi:v1", "old-logs"], ["nutrifi:reminders-sent", "a"], ["nutrintel:reminders-sent", "b"], ["other", "x"]]);
+    const storage = {
+      get length() { return data.size; },
+      key: (i: number) => [...data.keys()][i] ?? null,
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+      removeItem: (k: string) => void data.delete(k),
+      clear: () => data.clear(),
+    } as Storage;
+    migrateOldStorageKeys(storage);
+    expect(Object.fromEntries(data)).toEqual({ "nutrintel:v1": "old-logs", "nutrintel:reminders-sent": "b", other: "x" });
+  });
+});

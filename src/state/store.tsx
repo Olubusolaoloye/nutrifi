@@ -130,7 +130,25 @@ export interface PersistedState {
   exercises: ExerciseEntry[];
 }
 
-export const STORAGE_KEY = "nutrifi:v1";
+export const STORAGE_KEY = "nutrintel:v1";
+
+/**
+ * The app was called Nutrifi before; move data saved under the old "nutrifi:" keys to "nutrintel:" once,
+ * so nobody loses their logs. Runs before the app reads storage.
+ */
+export function migrateOldStorageKeys(storage: Storage = localStorage) {
+  try {
+    const old = Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter((k): k is string => !!k?.startsWith("nutrifi:"));
+    for (const key of old) {
+      const next = `nutrintel:${key.slice("nutrifi:".length)}`;
+      const value = storage.getItem(key);
+      if (storage.getItem(next) === null && value !== null) storage.setItem(next, value);
+      storage.removeItem(key);
+    }
+  } catch {
+    // Storage unavailable (private mode): nothing to migrate.
+  }
+}
 export const EMPTY: PersistedState = {
   profile: null,
   diary: [],

@@ -77,7 +77,7 @@ export function Admin() {
   );
 }
 
-/** What Nutrifi owes each dietitian, and a record of bank transfers made. */
+/** What Nutrintel owes each dietitian, and a record of bank transfers made. */
 function Payouts() {
   const rows = useQuery(api.clients.payoutsOverview);
   const record = useMutation(api.clients.recordPayout);

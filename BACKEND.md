@@ -1,6 +1,6 @@
-# Nutrifi backend (Convex)
+# Nutrintel backend (Convex)
 
-Nutrifi runs in two modes:
+Nutrintel runs in two modes:
 
 - **On-device** (no `VITE_CONVEX_URL`): no accounts; data is saved in the browser. This is what runs until Convex is set up.
 - **Cloud** (`VITE_CONVEX_URL` set): email + password accounts, data synced to Convex, real verification.
@@ -36,12 +36,12 @@ Every function checks who is signed in and only touches that user's rows. Only a
 You need Node.js 20+ and a free Convex account (https://convex.dev).
 
 ```bash
-git clone -b claude/nutrifi-strategy https://github.com/Olubusolaoloye/nutrifi
+git clone -b claude/nutrifi-strategy https://github.com/Olubusolaoloye/nutrifi   # repository and branch keep their original names
 cd nutrifi
 npm install
 
 # 1. Create the Convex project and push the functions.
-#    Log in when asked, choose "create a new project" (e.g. "nutrifi").
+#    Log in when asked, choose "create a new project" (e.g. "nutrintel").
 #    This writes CONVEX_DEPLOYMENT and VITE_CONVEX_URL into .env.local.
 npx convex dev --once
 
@@ -61,15 +61,15 @@ Create an account with the email you put in `ADMIN_EMAILS`, and the **Verificati
 ## Going live on Netlify
 
 1. In the Convex dashboard, open your project → **Production** → **Settings** → generate a **Production deploy key**.
-2. Set up auth keys for production: `npx @convex-dev/auth --prod` (use `https://nutrifi-ng.netlify.app` as the site URL), then
+2. Set up auth keys for production: `npx @convex-dev/auth --prod` (use `https://nutrintel.netlify.app` as the site URL), then
    `npx convex env set --prod ADMIN_EMAILS "you@example.com"`.
-3. In Netlify → **nutrifi-ng** → **Project configuration → Environment variables**, add `CONVEX_DEPLOY_KEY` with that key.
+3. In Netlify → **nutrintel** → **Project configuration → Environment variables**, add `CONVEX_DEPLOY_KEY` with that key.
 4. Redeploy. The build (`npm run build:ci`) deploys the Convex functions, sets `VITE_CONVEX_URL` automatically, and builds the app in cloud mode.
 
 ## Password reset emails (Resend)
 
-1. Create a free account at https://resend.com, verify your sending domain (e.g. `nutrifi.ng`) and create an API key.
-2. `npx convex env set AUTH_RESEND_KEY re_xxx` and `npx convex env set AUTH_EMAIL_FROM "Nutrifi <no-reply@nutrifi.ng>"` (add `--prod` for production).
+1. Create a free account at https://resend.com, verify your sending domain (e.g. `nutrintel.ng`) and create an API key.
+2. `npx convex env set AUTH_RESEND_KEY re_xxx` and `npx convex env set AUTH_EMAIL_FROM "Nutrintel <no-reply@nutrintel.ng>"` (add `--prod` for production).
 
 Without these, "Forgot password?" tells people reset isn't available yet.
 
@@ -80,24 +80,24 @@ Without these, "Forgot password?" tells people reset isn't available yet.
    ```bash
    npx convex env set VAPID_PUBLIC_KEY  "<public key>"
    npx convex env set VAPID_PRIVATE_KEY "<private key>"
-   npx convex env set VAPID_SUBJECT     "mailto:hello@nutrifi.ng"
+   npx convex env set VAPID_SUBJECT     "mailto:hello@nutrintel.ng"
    ```
-3. Members turn notifications on per device under **Reminders**. On iPhone, push only works once Nutrifi is added to the Home Screen (iOS 16.4+).
+3. Members turn notifications on per device under **Reminders**. On iPhone, push only works once Nutrintel is added to the Home Screen (iOS 16.4+).
 
 Never change the VAPID keys once people have subscribed — existing devices would stop receiving reminders until they turn notifications on again.
 
 ## Reminders: WhatsApp (Meta WhatsApp Cloud API)
 
 1. In https://developers.facebook.com create an app → add **WhatsApp**, connect a business phone number and create a **permanent access token** (System User in Business Settings, with `whatsapp_business_messaging`).
-2. Create a message template in WhatsApp Manager, category **Utility**, language English, named `nutrifi_reminder`, with this body:
-   > Hi {{1}}, a reminder from Nutrifi: {{2}}
+2. Create a message template in WhatsApp Manager, category **Utility**, language English, named `nutrintel_reminder`, with this body:
+   > Hi {{1}}, a reminder from Nutrintel: {{2}}
 
    Wait for Meta to approve it. (Optional: an **Authentication** template for the confirmation code — set its name in `WHATSAPP_CODE_TEMPLATE`; otherwise the code is sent with the reminder template.)
 3. Save the settings in Convex:
    ```bash
    npx convex env set WHATSAPP_TOKEN "<permanent token>"
    npx convex env set WHATSAPP_PHONE_NUMBER_ID "<phone number id>"
-   npx convex env set WHATSAPP_TEMPLATE nutrifi_reminder        # optional, this is the default
+   npx convex env set WHATSAPP_TEMPLATE nutrintel_reminder        # optional, this is the default
    npx convex env set WHATSAPP_TEMPLATE_LANG en                 # optional, must match the template's language code
    ```
 
@@ -109,7 +109,7 @@ Members add their number under **Reminders**, tick the consent box and confirm i
 2. `npx convex env set PAYSTACK_SECRET_KEY sk_test_xxx` (add `--prod` for production with the `sk_live_…` key). `SITE_URL` (set during auth setup) is where Paystack sends members back: `<SITE_URL>/programmes/paid`.
 3. In Paystack → **Webhook URL**, enter `https://<your-deployment>.convex.site/paystack/webhook` (the `.convex.site` URL is shown in the Convex dashboard).
 
-How money flows: the member pays Nutrifi the dietitian's price; Nutrifi keeps the platform fee (20%, `PLATFORM_FEE_PERCENT` in `src/data/programmes.ts`); admins pay the dietitian's share by bank transfer and record it under **Admin → Dietitian payouts**. An enrolment only becomes active when Paystack confirms a charge for exactly the price (via the webhook or the return check), so a tampered redirect can't activate it. Paystack split payments (subaccounts) can replace manual payouts later.
+How money flows: the member pays Nutrintel the dietitian's price; Nutrintel keeps the platform fee (20%, `PLATFORM_FEE_PERCENT` in `src/data/programmes.ts`); admins pay the dietitian's share by bank transfer and record it under **Admin → Dietitian payouts**. An enrolment only becomes active when Paystack confirms a charge for exactly the price (via the webhook or the return check), so a tampered redirect can't activate it. Paystack split payments (subaccounts) can replace manual payouts later.
 
 For testing without Paystack, `npx convex env set PAYMENTS_DEMO true` activates programmes without payment. Demo enrolments are marked and never count as earnings. **Never set it in production.**
 
@@ -118,7 +118,7 @@ Privacy: a dietitian sees a member's diary, water, weight and notes only while t
 ## Notes
 
 - The reminder cron reads every member's settings each run, which is fine for the MVP; shard or index by next-due time as the user base grows.
-- Without an account (on-device mode), reminders show as browser notifications only while Nutrifi is open.
+- Without an account (on-device mode), reminders show as browser notifications only while Nutrintel is open.
 - Sign-in is email + password for now. Phone OTP can be added with an SMS provider (e.g. Termii) as a custom Convex Auth provider.
 - Verification documents are stored in Convex file storage and visible only to admins.
 - `convex/_generated/` was written by hand to match Convex's output (this environment couldn't reach Convex); `npx convex dev` regenerates it.

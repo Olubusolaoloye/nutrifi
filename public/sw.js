@@ -1,6 +1,6 @@
 // Minimal offline support: cache the app shell, serve it when offline.
 // Network-first so users always get the newest version when online.
-const CACHE = "nutrifi-v2";
+const CACHE = "nutrintel-v3";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -37,7 +37,7 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "Nutrifi";
+  const title = data.title || "Nutrintel";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
