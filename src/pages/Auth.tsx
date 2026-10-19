@@ -33,23 +33,31 @@ export function Auth() {
   const [flow, setFlow] = useState<Flow>(params.get("mode") === "signup" ? "signUp" : "signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [code, setCode] = useState("");
+  /** Creating an account or setting a new password: ask for it twice so a typo can't lock you out. */
+  const choosing = flow === "signUp" || flow === "reset";
   const [info, setInfo] = useState<string | null>(null);
   const go = (next: Flow) => {
     setFlow(next);
     setError(null);
     setInfo(null);
     setPassword("");
+    setConfirm("");
   };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if ((flow === "signUp" || flow === "reset") && password.length < 8) {
+    if (choosing && password.length < 8) {
       setError("Please use a password of at least 8 characters.");
+      return;
+    }
+    if (choosing && password !== confirm) {
+      setError("The passwords don't match. Please type the same password in both boxes.");
       return;
     }
     setBusy(true);
@@ -68,6 +76,7 @@ export function Auth() {
         }
         setFlow("reset");
         setPassword("");
+        setConfirm("");
         setInfo("If there's a Nutrintel account for this email, we've sent it an 8-digit code. It expires in 15 minutes.");
         setBusy(false);
         return;
@@ -159,6 +168,24 @@ export function Auth() {
               </button>
             </div>
           </label>
+          )}
+          {choosing && (
+            <label className="field">
+              <span>Confirm {flow === "reset" ? "new password" : "password"}</span>
+              <div className="input-icon">
+                <Lock size={17} aria-hidden />
+                <input
+                  type={show ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="Type it again"
+                  aria-invalid={confirm.length > 0 && confirm !== password}
+                />
+              </div>
+              {!error && confirm.length > 0 && confirm !== password && <span className="error small">Doesn't match yet.</span>}
+            </label>
           )}
           {error && <p className="error small" role="alert">{error}</p>}
           <button className="btn btn-primary btn-block" disabled={busy}>
