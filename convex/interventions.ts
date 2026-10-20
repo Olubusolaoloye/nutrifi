@@ -2,6 +2,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { scheduleMessageAlert } from "./alerts";
 import { checkText, getProfile, requireUser } from "./helpers";
 import { intake } from "./validators";
 import { programmeById } from "../src/data/programmes";
@@ -168,8 +169,7 @@ export const sendMessage = mutation({
     const clean = text.trim();
     if (!clean) return;
     checkText(clean, 2000, "Message");
-    await ctx.db.insert("messages", { enrolmentId: e._id, senderId: userId, text: clean, sentAt: Date.now() });
-    await ctx.db.patch(e._id, e.memberId === userId ? { memberReadAt: Date.now() } : { dietitianReadAt: Date.now() });
+    await postProgrammeMessage(ctx, e, userId, clean);
   },
 });
 
@@ -184,6 +184,14 @@ export const markRead = mutation({
 
 /* ---------- Programme chats on the Messages page ---------- */
 
+/** Adds a message to a programme chat, marks it read for the sender and alerts the other side. */
+async function postProgrammeMessage(ctx: MutationCtx, e: Doc<"enrolments">, senderId: Id<"users">, text: string) {
+  const now = Date.now();
+  await ctx.db.insert("messages", { enrolmentId: e._id, senderId, text, sentAt: now });
+  await ctx.db.patch(e._id, e.memberId === senderId ? { memberReadAt: now } : { dietitianReadAt: now });
+  await scheduleMessageAlert(ctx, { kind: "programme", chatId: e._id, to: e.memberId === senderId ? e.dietitianId : e.memberId, from: senderId, sentAt: now });
+}
+
 /**
  * Ending a programme takes both the member and the dietitian. Each side confirms (which posts a note in the chat);
  * it completes once both have. `ended: false` takes your confirmation back.
@@ -192,7 +200,7 @@ export async function confirmEnd(ctx: MutationCtx, e: Doc<"enrolments">, userId:
   if (e.status !== "active") throw new ConvexError("This programme isn't active.");
   const mine = e.memberId === userId ? "memberEndedAt" : "dietitianEndedAt";
   const theirs = mine === "memberEndedAt" ? "dietitianEndedAt" : "memberEndedAt";
-  const note = (text: string) => ctx.db.insert("messages", { enrolmentId: e._id, senderId: userId, text, sentAt: Date.now() });
+  const note = (text: string) => postProgrammeMessage(ctx, e, userId, text);
   if (!ended) {
     if (e[mine]) {
       await ctx.db.patch(e._id, { [mine]: undefined });

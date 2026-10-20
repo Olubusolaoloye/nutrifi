@@ -2,7 +2,7 @@
 // Cloud versions talk to Convex; on-device versions work without an account.
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
-import { BellRing, Check, MessageCircle, Send, Smartphone } from "lucide-react";
+import { BellRing, Check, MessageCircle, Send, Smartphone, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../../convex/_generated/api";
 import { currentPushEndpoint, isInstalled, isIos, notificationsSupported, pushSupported, requestPermission, showNotification, subscribePush, unsubscribePush } from "../lib/push";
@@ -118,6 +118,59 @@ export function CloudPushCard({ save }: { save: Save }) {
       {others > 0 && <p className="small muted">Also on {others} other {others === 1 ? "device" : "devices"}.</p>}
       {error && <p className="small error" role="alert">{error}</p>}
     </Card>
+  );
+}
+
+const NUDGE_KEY = "nutrintel:notify-nudge-dismissed";
+
+/** On Messages: offer to turn on notifications for this device, so replies aren't missed. */
+export function CloudNotifyNudge() {
+  const { reminders, updateReminders } = useStore();
+  const config = useQuery(api.reminders.config);
+  const channels = useQuery(api.reminders.myChannels);
+  const saveSub = useMutation(api.reminders.savePushSubscription);
+  const [endpoint, setEndpoint] = useState<string | null | undefined>(undefined);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(NUDGE_KEY) === "1"; } catch { return false; }
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    void currentPushEndpoint().then(setEndpoint);
+  }, []);
+
+  const onThisDevice = !!endpoint && !!channels?.pushEndpoints.includes(endpoint);
+  if (dismissed || !config?.pushPublicKey || !channels || endpoint === undefined || (onThisDevice && reminders.push)) return null;
+  if (!pushSupported() || (isIos() && !isInstalled()) || Notification.permission === "denied") return null;
+
+  const turnOn = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const keys = await subscribePush(config.pushPublicKey!);
+      await saveSub(keys);
+      setEndpoint(keys.endpoint);
+      updateReminders({ ...reminders, push: true, utcOffsetMinutes: -new Date().getTimezoneOffset() });
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const dismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem(NUDGE_KEY, "1"); } catch { /* private mode */ }
+  };
+  return (
+    <div className="notify-nudge" role="region" aria-label="Notifications">
+      <BellRing size={18} aria-hidden />
+      <span className="grow small">
+        <strong>Don't miss a reply.</strong> Get a notification when a friend or your dietitian messages you.
+        {error && <span className="error" role="alert"> {error}</span>}
+      </span>
+      <button className="btn btn-primary btn-small" disabled={busy} onClick={turnOn}>{busy ? "Turning on…" : "Turn on"}</button>
+      <button className="icon-btn sm ghost" onClick={dismiss} aria-label="Not now"><X size={16} /></button>
+    </div>
   );
 }
 

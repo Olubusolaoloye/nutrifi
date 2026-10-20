@@ -5,6 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { MessageBox } from "../components/MessageBox";
+import { CloudNotifyNudge } from "../components/ReminderChannels";
 import { GroceryCard, PeoplePicker, PlanCard } from "../components/Social";
 import { Avatar } from "../components/Layout";
 import { PageHeader, SearchBox, Sheet } from "../components/ui";
@@ -87,6 +88,7 @@ function CloudMessages() {
       <PageHeader title="Messages" subtitle="Chat with friends and share your meal plan">
         <button className="btn btn-primary" onClick={() => setComposing(true)}><MessageCirclePlus size={18} /> New message</button>
       </PageHeader>
+      <CloudNotifyNudge />
       <div className={`chat-layout${chatOpen ? " has-active" : ""}`}>
         <section className="card chat-list">
           <SearchBox value={query} onChange={setQuery} placeholder="Search chats by name or @username" />

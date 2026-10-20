@@ -1,6 +1,6 @@
 // Minimal offline support: cache the app shell, serve it when offline.
 // Network-first so users always get the newest version when online.
-const CACHE = "nutrintel-v3";
+const CACHE = "nutrintel-v4";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -44,6 +44,8 @@ self.addEventListener("push", (event) => {
       icon: "/icon.svg",
       badge: "/icon.svg",
       tag: data.tag,
+      // A newer message in the same chat replaces the old notification and still buzzes.
+      renotify: !!(data.tag && data.tag.startsWith("chat-")),
       data: { url: data.url || "/home" },
     }),
   );

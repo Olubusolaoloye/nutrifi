@@ -1,4 +1,4 @@
-import { CalendarClock, Droplets, Scale, UtensilsCrossed } from "lucide-react";
+import { CalendarClock, Droplets, MessageCircle, Scale, UtensilsCrossed } from "lucide-react";
 import { useState } from "react";
 import { CloudPushCard, CloudTestButton, CloudWhatsAppCard, LocalPushCard, LocalWhatsAppCard } from "../components/ReminderChannels";
 import { Card, PageHeader, Switch } from "../components/ui";
@@ -85,6 +85,17 @@ export function Reminders() {
 
         <div className="stack">
           <h2 className="section-title">What to remind me about</h2>
+          {cloud && (
+            <Card
+              title={<span className="row"><MessageCircle size={18} /> New messages</span>}
+              action={<Switch label="New message notifications" checked={reminders.messages !== false} onChange={(messages) => save({ messages })} />}
+            >
+              <p className="small muted" style={{ marginTop: 0 }}>
+                When a friend or your dietitian writes and you haven't seen it in the app. Messages about your programme only say who wrote, not what they said.
+                {reminders.whatsapp && " On WhatsApp, at most one alert an hour per chat."}
+              </p>
+            </Card>
+          )}
           <Card title={<span className="row"><UtensilsCrossed size={18} /> Meals</span>}>
             <p className="small muted" style={{ marginTop: 0 }}>If a dish is on your meal plan, the reminder tells you what it is.</p>
             {REMINDER_MEALS.map((m) => {
