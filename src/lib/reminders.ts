@@ -24,6 +24,8 @@ export interface ReminderSettings {
   weighIn: WeeklyReminder;
   planning: WeeklyReminder;
   appointments: { on: boolean; minutesBefore: number };
+  /** Notify about new chat messages (on unless switched off). */
+  messages?: boolean;
   /** The member's offset from UTC in minutes (Lagos: 60). Taken from their device. */
   utcOffsetMinutes: number;
 }
@@ -41,6 +43,7 @@ export const DEFAULT_REMINDERS: ReminderSettings = {
   weighIn: { on: true, day: 1, time: "07:00" },
   planning: { on: true, day: 0, time: "17:00" },
   appointments: { on: true, minutesBefore: 60 },
+  messages: true,
   utcOffsetMinutes: 60,
 };
 

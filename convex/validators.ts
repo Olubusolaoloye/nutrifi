@@ -86,6 +86,8 @@ export const reminderSettings = v.object({
   weighIn: weekly,
   planning: weekly,
   appointments: v.object({ on: v.boolean(), minutesBefore: v.number() }),
+  /** New chat messages (on unless switched off). */
+  messages: v.optional(v.boolean()),
   utcOffsetMinutes: v.number(),
 });
 

@@ -148,18 +148,20 @@ export interface Delivery {
   messages: ReminderMessage[];
   push: Array<{ endpoint: string; p256dh: string; auth: string }>;
   whatsapp: string | null;
+  /** Replaces the reminder text on WhatsApp (message alerts leave the message itself out). */
+  whatsappText?: string;
   name: string;
 }
 
-async function deliveryFor(
+export async function deliveryFor(
   ctx: QueryCtx | MutationCtx,
   userId: Id<"users">,
   messages: ReminderMessage[],
-  opts: { settings?: Doc<"settings">; ignoreChannelSwitches?: boolean } = {},
+  opts: { settings?: Doc<"settings">; ignoreChannelSwitches?: boolean; whatsapp?: boolean } = {},
 ): Promise<Delivery | null> {
   const settings = opts.settings ?? (await ctx.db.query("settings").withIndex("by_user", (q) => q.eq("userId", userId)).unique());
   const wantPush = opts.ignoreChannelSwitches || !!settings?.reminders?.push;
-  const wantWhatsApp = opts.ignoreChannelSwitches || !!settings?.reminders?.whatsapp;
+  const wantWhatsApp = opts.whatsapp !== false && (opts.ignoreChannelSwitches || !!settings?.reminders?.whatsapp);
   const push = wantPush
     ? (await ctx.db.query("pushSubscriptions").withIndex("by_user", (q) => q.eq("userId", userId)).collect()).map(({ endpoint, p256dh, auth }) => ({ endpoint, p256dh, auth }))
     : [];

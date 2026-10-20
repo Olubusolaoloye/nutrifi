@@ -758,3 +758,62 @@ describe("programme chats", () => {
     await expect(m.as.mutation(api.interventions.endProgramme, { enrolmentId, ended: true })).rejects.toThrow(/isn't active/);
   });
 });
+
+describe("new message alerts", () => {
+  async function member(t: ReturnType<typeof convexTest>, email: string, name: string) {
+    const m = await signedIn(t, email);
+    await m.as.mutation(api.profile.create, { ...PROFILE, name, role: "consumer", weightKg: 70 });
+    return m;
+  }
+  const PUSH = { endpoint: "https://push.example.com/bisi", p256dh: "k".repeat(80), auth: "a".repeat(20) };
+
+  it("pushes the latest unread message to the other person, unless they've read it or switched alerts off", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await member(t, "ada@example.com", "Ada");
+    const bisi = await member(t, "bisi@example.com", "Bisi");
+    const chatId = await ada.as.mutation(api.social.start, { username: "bisi" });
+    const sentAt = async () => (await ada.as.query(api.social.thread, { conversationId: chatId })).messages.map((m) => Date.parse(m.sentAt));
+    const claim = (at: number) => t.mutation(internal.alerts.claimMessageAlert, { kind: "direct", chatId, to: bisi.userId, from: ada.userId, sentAt: at });
+
+    await ada.as.mutation(api.social.send, { conversationId: chatId, text: "Are you coming to the market?" });
+    // No device or WhatsApp yet: nothing to send.
+    expect(await claim((await sentAt())[0])).toBeNull();
+
+    await bisi.as.mutation(api.reminders.savePushSubscription, PUSH);
+    await bisi.as.mutation(api.settings.updateReminders, { reminders: { ...REMINDERS, whatsapp: false } });
+    let d = (await claim((await sentAt())[0]))!;
+    expect(d.push).toEqual([expect.objectContaining({ endpoint: PUSH.endpoint })]);
+    expect(d.messages).toEqual([{ key: `chat-${chatId}`, title: "💬 Ada", body: "Are you coming to the market?", url: `/messages?c=${chatId}` }]);
+
+    // A burst: only the latest message alerts, and it counts the unread ones.
+    await new Promise((r) => setTimeout(r, 5));
+    await ada.as.mutation(api.social.send, { conversationId: chatId, text: "", plan: { title: "Week", items: [{ day: 0, meal: "Lunch", recipeId: "akara-pap" }] } });
+    const [first, second] = await sentAt();
+    expect(await claim(first)).toBeNull();
+    d = (await claim(second))!;
+    expect(d.messages[0].body).toBe("2 new messages · 📅 Sent you a meal plan");
+
+    // Read in the app: no alert.
+    await bisi.as.mutation(api.social.markRead, { conversationId: chatId });
+    expect(await claim(second)).toBeNull();
+
+    // Switched off.
+    await new Promise((r) => setTimeout(r, 5));
+    await ada.as.mutation(api.social.send, { conversationId: chatId, text: "Hello?" });
+    const third = (await sentAt())[2];
+    expect(await claim(third)).not.toBeNull();
+    await bisi.as.mutation(api.settings.updateReminders, { reminders: { ...REMINDERS, whatsapp: false, messages: false } });
+    expect(await claim(third)).toBeNull();
+  });
+
+  it("keeps programme messages off the lock screen", async () => {
+    const { t, d, m, enrolmentId } = await paidSetup();
+    await m.as.mutation(api.reminders.savePushSubscription, PUSH);
+    await m.as.mutation(api.settings.updateReminders, { reminders: { ...REMINDERS, whatsapp: false } });
+    await d.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Your HbA1c result looks better." });
+    const [msg] = (await m.as.query(api.interventions.programmeThread, { enrolmentId }))!.messages;
+    const alert = (await t.mutation(internal.alerts.claimMessageAlert, { kind: "programme", chatId: enrolmentId, to: m.userId, from: d.userId, sentAt: Date.parse(msg.sentAt) }))!;
+    expect(alert.messages[0]).toMatchObject({ title: "🩺 Dr Funke", body: "New message about your programme", url: `/messages?p=${enrolmentId}` });
+    expect(JSON.stringify(alert)).not.toContain("HbA1c");
+  });
+});

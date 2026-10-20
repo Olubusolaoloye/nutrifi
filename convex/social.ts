@@ -3,6 +3,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { scheduleMessageAlert } from "./alerts";
 import { checkRange, checkText, getProfile, requireUser } from "./helpers";
 import { normalizeUsername, profileByUsername } from "./usernames";
 import { sharedGrocery, sharedPlan } from "./validators";
@@ -178,6 +179,7 @@ export const send = mutation({
     if (recent.filter((m) => m.senderId === userId).length >= MAX_PER_MINUTE) throw new ConvexError("You're sending messages very fast. Please wait a minute.");
     await ctx.db.insert("directMessages", { conversationId: c._id, senderId: userId, text: clean, plan, grocery, checked: ticked, sentAt: now });
     await ctx.db.patch(c._id, { lastMessageAt: now, [readKey(c, userId)]: now });
+    await scheduleMessageAlert(ctx, { kind: "direct", chatId: c._id, to: c.a === userId ? c.b : c.a, from: userId, sentAt: now });
   },
 });
 

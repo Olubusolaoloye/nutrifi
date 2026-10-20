@@ -1,5 +1,5 @@
 "use node";
-// Sends reminders: web push (VAPID) and WhatsApp (Meta WhatsApp Cloud API template messages).
+// Sends reminders and new-message alerts: web push (VAPID) and WhatsApp (Meta WhatsApp Cloud API template messages).
 import { v } from "convex/values";
 import webpush from "web-push";
 import { internal } from "./_generated/api";
@@ -61,7 +61,7 @@ async function sendWhatsApp(d: Delivery) {
   if (!d.whatsapp || !process.env.WHATSAPP_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) return;
   const template = process.env.WHATSAPP_TEMPLATE ?? "nutrintel_reminder";
   // One message per run, even when several reminders fall due together.
-  const text = d.messages.map((m) => `${m.title} ${m.body}`).join(" · ");
+  const text = d.whatsappText ?? d.messages.map((m) => `${m.title} ${m.body}`).join(" · ");
   await sendTemplate(d.whatsapp, template, reminderTemplate(d.name, text));
 }
 
@@ -83,6 +83,15 @@ export const tick = internalAction({
   handler: async (ctx) => {
     const deliveries: Delivery[] = await ctx.runMutation(internal.reminders.claimDue, { now: Date.now() });
     if (deliveries.length) await ctx.runAction(internal.notify.deliver, { deliveries });
+  },
+});
+
+/** A new chat message (scheduled by alerts.scheduleMessageAlert a few seconds after it was sent). */
+export const messageAlert = internalAction({
+  args: { kind: v.union(v.literal("direct"), v.literal("programme")), chatId: v.string(), to: v.id("users"), from: v.id("users"), sentAt: v.number() },
+  handler: async (ctx, args) => {
+    const delivery: Delivery | null = await ctx.runMutation(internal.alerts.claimMessageAlert, args);
+    if (delivery) await ctx.runAction(internal.notify.deliver, { deliveries: [delivery] });
   },
 });
 

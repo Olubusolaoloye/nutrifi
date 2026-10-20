@@ -14,7 +14,8 @@ Nutrintel runs in two modes:
 | `passwordReset.ts` | "Forgot password?": emails an 8-digit reset code through Resend |
 | `settings.ts` | Saves meal-plan preferences and reminder settings |
 | `reminders.ts` | Push subscriptions, WhatsApp number confirmation (6-digit code), test reminders, and `claimDue`, which works out what's due and records it so nothing is sent twice |
-| `notify.ts` | Sends reminders (Node runtime): web push with VAPID keys, WhatsApp Cloud API template messages |
+| `notify.ts` | Sends reminders and new-message alerts (Node runtime): web push with VAPID keys, WhatsApp Cloud API template messages |
+| `alerts.ts` | New-message alerts: each chat message schedules one 15 s later, sent only if it's still unread then and is the latest in the burst. Programme chats never put the message text in the notification; WhatsApp alerts say who wrote, at most once an hour per chat |
 | `crons.ts` | Checks for due reminders every 5 minutes |
 | `interventions.ts` | Paid programmes: catalogue of verified dietitians' offerings, enrolment with intake and consent, member programme view, messages, payment confirmation (`markPaid`) |
 | `payments.ts` | Paystack checkout (`startPayment`) and verification on return (`verifyPayment`) |
@@ -88,6 +89,8 @@ Without these, "Forgot password?" tells people reset isn't available yet.
    ```
 3. Members turn notifications on per device under **Reminders**. On iPhone, push only works once Nutrintel is added to the Home Screen (iOS 16.4+).
 
+The production deployment already has its keys (set October 2026), with `VAPID_SUBJECT` set to the site's address.
+
 Never change the VAPID keys once people have subscribed — existing devices would stop receiving reminders until they turn notifications on again.
 
 ## Reminders: WhatsApp (Meta WhatsApp Cloud API)
@@ -104,6 +107,8 @@ Never change the VAPID keys once people have subscribed — existing devices wou
    npx convex env set WHATSAPP_TEMPLATE nutrintel_reminder        # optional, this is the default
    npx convex env set WHATSAPP_TEMPLATE_LANG en                 # optional, must match the template's language code
    ```
+
+The same template carries new-message alerts ("Hi Ada, a reminder from Nutrintel: Bisi sent you a message on Nutrintel. Open the app to reply."). Members can switch message alerts off under **Reminders → New messages**.
 
 Members add their number under **Reminders**, tick the consent box and confirm it with the 6-digit code sent to WhatsApp. Reminders only go to confirmed numbers; up to 3 codes an hour and 5 tries per code. Meta charges per conversation — check current WhatsApp pricing for Nigeria.
 
