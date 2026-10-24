@@ -5,6 +5,7 @@ import webpush from "web-push";
 import { internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
 import type { Delivery } from "./reminders";
+import { MAX_SNOOZES, signSnooze } from "./snooze";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
@@ -21,11 +22,17 @@ async function sendPush(d: Delivery): Promise<string[]> {
   if (d.push.length === 0 || !pushReady()) return [];
   const gone: string[] = [];
   for (const m of d.messages) {
-    const payload = JSON.stringify({ title: m.title, body: m.body, url: m.url, tag: m.key });
+    const snoozes = d.snoozes ?? 0;
+    // Alarms: high urgency (delivered right away, even in battery saver) and dropped if over 15 minutes late.
+    const snooze = m.priority && snoozes < MAX_SNOOZES && process.env.CONVEX_SITE_URL
+      ? { snoozeUrl: `${process.env.CONVEX_SITE_URL}/reminders/snooze`, snoozeToken: await signSnooze(process.env.VAPID_PRIVATE_KEY!, { u: d.userId, m: { key: m.key, title: m.title, body: m.body, url: m.url }, n: snoozes }) }
+      : {};
+    const payload = JSON.stringify({ title: m.title, body: m.body, url: m.url, tag: m.key, priority: !!m.priority, ...snooze });
+    const options = m.priority ? { TTL: 900, urgency: "high" as const } : { TTL: 3600, urgency: "normal" as const };
     await Promise.all(
       d.push.map(async (s) => {
         try {
-          await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 3600, urgency: "normal" });
+          await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, options);
         } catch (err) {
           const status = (err as { statusCode?: number }).statusCode;
           if (status === 404 || status === 410) gone.push(s.endpoint);
@@ -83,6 +90,15 @@ export const tick = internalAction({
   handler: async (ctx) => {
     const deliveries: Delivery[] = await ctx.runMutation(internal.reminders.claimDue, { now: Date.now() });
     if (deliveries.length) await ctx.runAction(internal.notify.deliver, { deliveries });
+  },
+});
+
+/** A snoozed alarm comes back (scheduled by the /reminders/snooze endpoint). */
+export const snoozed = internalAction({
+  args: { userId: v.id("users"), message: v.object({ key: v.string(), title: v.string(), body: v.string(), url: v.string() }), snoozes: v.number() },
+  handler: async (ctx, args) => {
+    const delivery: Delivery | null = await ctx.runMutation(internal.reminders.snoozedDelivery, args);
+    if (delivery) await ctx.runAction(internal.notify.deliver, { deliveries: [delivery] });
   },
 });
 

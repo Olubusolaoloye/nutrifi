@@ -15,6 +15,9 @@ export interface WeeklyReminder extends TimedReminder {
   day: number;
 }
 
+export type AlarmKind = "meals" | "water" | "weighIn" | "planning" | "appointments";
+export const SNOOZE_MINUTES = 10;
+
 export interface ReminderSettings {
   /** Channels. */
   push: boolean;
@@ -26,6 +29,8 @@ export interface ReminderSettings {
   appointments: { on: boolean; minutesBefore: number };
   /** Notify about new chat messages (on unless switched off). */
   messages?: boolean;
+  /** Reminder types that arrive as alarms: high priority, stay on screen, vibrate, Done / Snooze. */
+  alarms?: Partial<Record<AlarmKind, boolean>>;
   /** The member's offset from UTC in minutes (Lagos: 60). Taken from their device. */
   utcOffsetMinutes: number;
 }
@@ -44,6 +49,7 @@ export const DEFAULT_REMINDERS: ReminderSettings = {
   planning: { on: true, day: 0, time: "17:00" },
   appointments: { on: true, minutesBefore: 60 },
   messages: true,
+  alarms: { meals: true, appointments: true },
   utcOffsetMinutes: 60,
 };
 
@@ -88,6 +94,8 @@ export interface ReminderMessage {
   body: string;
   /** Page to open when tapped. */
   url: string;
+  /** Show as an alarm (see ReminderSettings.alarms). */
+  priority?: boolean;
 }
 
 export interface ReminderContext {
@@ -122,6 +130,7 @@ export function dueReminders(s: ReminderSettings, nowMs: number, ctx: ReminderCo
     const t = toMinutes(time);
     return Number.isFinite(t) && minutes >= t && minutes < t + windowMinutes;
   };
+  const alarm = (kind: AlarmKind) => !!s.alarms?.[kind];
   const out: ReminderMessage[] = [];
 
   for (const meal of REMINDER_MEALS) {
@@ -131,6 +140,7 @@ export function dueReminders(s: ReminderSettings, nowMs: number, ctx: ReminderCo
     const label = meal === "Snacks" ? "Snack" : meal;
     out.push({
       key: `${date}|meal|${meal}`,
+      priority: alarm("meals"),
       title: `${label} time 🍽️`,
       body: planned ? `On your plan: ${planned}. Log it in your diary when you eat.` : `Remember to log your ${label.toLowerCase()} in your food diary.`,
       url: planned ? "/plan" : "/add",
@@ -141,16 +151,16 @@ export function dueReminders(s: ReminderSettings, nowMs: number, ctx: ReminderCo
     const time = waterTimes(s.water).find(due);
     if (time) {
       const progress = ctx.waterTargetMl ? ` You've had ${(ctx.waterMl / 1000).toFixed(1)} of ${(ctx.waterTargetMl / 1000).toFixed(1)} L today.` : "";
-      out.push({ key: `${date}|water|${time}`, title: "Time for some water 💧", body: `Have a glass or a sachet of water.${progress}`, url: "/home" });
+      out.push({ key: `${date}|water|${time}`, priority: alarm("water"), title: "Time for some water 💧", body: `Have a glass or a sachet of water.${progress}`, url: "/home" });
     }
   }
 
   if (s.weighIn.on && weekday === s.weighIn.day && due(s.weighIn.time)) {
-    out.push({ key: `${date}|weigh`, title: "Weekly weigh-in ⚖️", body: "Weigh yourself before breakfast and log it to see your progress.", url: "/progress" });
+    out.push({ key: `${date}|weigh`, priority: alarm("weighIn"), title: "Weekly weigh-in ⚖️", body: "Weigh yourself before breakfast and log it to see your progress.", url: "/progress" });
   }
 
   if (s.planning.on && weekday === s.planning.day && due(s.planning.time)) {
-    out.push({ key: `${date}|planning`, title: "Plan your week 🗓️", body: "Fill next week's meal plan and get your grocery list ready.", url: "/plan" });
+    out.push({ key: `${date}|planning`, priority: alarm("planning"), title: "Plan your week 🗓️", body: "Fill next week's meal plan and get your grocery list ready.", url: "/plan" });
   }
 
   if (s.appointments.on) {
@@ -160,7 +170,7 @@ export function dueReminders(s: ReminderSettings, nowMs: number, ctx: ReminderCo
       if (!Number.isFinite(at)) continue;
       const remindAt = at - s.appointments.minutesBefore * 60_000;
       if (now >= remindAt && now < remindAt + windowMinutes * 60_000 && now < at) {
-        out.push({ key: `event|${e.id}|${e.date}T${e.time}`, title: `Coming up at ${e.time}`, body: e.title, url: "/calendar" });
+        out.push({ key: `event|${e.id}|${e.date}T${e.time}`, priority: alarm("appointments"), title: `Coming up at ${e.time}`, body: e.title, url: "/calendar" });
       }
     }
   }

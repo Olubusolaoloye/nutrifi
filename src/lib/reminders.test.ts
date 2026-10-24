@@ -78,3 +78,14 @@ describe("phone numbers", () => {
     expect(normalizePhone("08031234")).toBeNull();
   });
 });
+
+describe("alarms", () => {
+  it("marks the chosen reminder types as alarms", () => {
+    const lunch = (s: typeof DEFAULT_REMINDERS) => dueReminders(s, lagos("2026-10-20", "13:00"), EMPTY_CTX).find((m) => m.key.includes("Lunch"))!;
+    expect(lunch(DEFAULT_REMINDERS).priority).toBe(true);
+    expect(lunch(on({ alarms: { meals: false } })).priority).toBe(false);
+    const water = dueReminders(DEFAULT_REMINDERS, lagos("2026-10-20", "10:00"), EMPTY_CTX)[0];
+    expect(water.priority).toBe(false);
+    expect(dueReminders(on({ alarms: { water: true } }), lagos("2026-10-20", "10:00"), EMPTY_CTX)[0].priority).toBe(true);
+  });
+});

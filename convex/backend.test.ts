@@ -869,3 +869,53 @@ describe("dietitian pro", () => {
     expect(await t.mutation(internal.pro.markPaid, { reference: "np_unknown", amountKobo: 750000 })).toBe("unknown");
   });
 });
+
+describe("alarm reminders", () => {
+  const SECRET = "test-vapid-private-key";
+  const MSG = { key: "2026-10-20|meal|Lunch", title: "Lunch time 🍽️", body: "On your plan: Jollof rice.", url: "/plan" };
+
+  it("signs snooze links that can't be edited, replayed past their limit, or used after they expire", async () => {
+    const { signSnooze, readSnooze, MAX_SNOOZES } = await import("./snooze");
+    const token = await signSnooze(SECRET, { u: "user1", m: MSG, n: 0 });
+    expect(await readSnooze(SECRET, token)).toMatchObject({ u: "user1", m: MSG, n: 0 });
+    expect(await readSnooze("another-key", token)).toBeNull();
+    const [body, sig] = token.split(".");
+    const edited = JSON.parse(decodeURIComponent(escape(atob(body.replace(/-/g, "+").replace(/_/g, "/")))));
+    edited.u = "someone-else";
+    const forged = `${btoa(unescape(encodeURIComponent(JSON.stringify(edited)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}.${sig}`;
+    expect(await readSnooze(SECRET, forged)).toBeNull();
+    expect(await readSnooze(SECRET, token, Date.now() + 13 * 3600_000)).toBeNull();
+    expect(await readSnooze(SECRET, await signSnooze(SECRET, { u: "user1", m: MSG, n: MAX_SNOOZES }))).toBeNull();
+  });
+
+  it("snoozing schedules the alarm once, and it comes back to the member's devices", async () => {
+    vi.stubEnv("VAPID_PRIVATE_KEY", SECRET);
+    const t = convexTest(schema, modules);
+    const ada = await signedIn(t, "ada@example.com");
+    await ada.as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 70 });
+    await ada.as.mutation(api.reminders.savePushSubscription, SUB);
+    await ada.as.mutation(api.settings.updateReminders, { reminders: { ...REMINDERS, whatsapp: false } });
+    const { signSnooze } = await import("./snooze");
+    const token = await signSnooze(SECRET, { u: ada.userId, m: MSG, n: 0 });
+
+    expect((await t.fetch("/reminders/snooze", { method: "POST", body: "nonsense" })).status).toBe(400);
+    expect((await t.fetch("/reminders/snooze", { method: "POST", body: token })).status).toBe(200);
+    expect((await t.fetch("/reminders/snooze", { method: "POST", body: token })).status).toBe(200);
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(scheduled.filter((s) => s.name.includes("snoozed"))).toHaveLength(1);
+    expect(scheduled.find((s) => s.name.includes("snoozed"))!.args[0]).toMatchObject({ message: { ...MSG, title: "⏰ Lunch time 🍽️" }, snoozes: 1 });
+
+    const d = (await t.mutation(internal.reminders.snoozedDelivery, { userId: ada.userId, message: { ...MSG, title: "⏰ Lunch time 🍽️" }, snoozes: 1 }))!;
+    expect(d).toMatchObject({ snoozes: 1, whatsapp: null, messages: [{ ...MSG, title: "⏰ Lunch time 🍽️", priority: true }] });
+    expect(d.push).toHaveLength(1);
+  });
+
+  it("test alarms need notifications on a device", async () => {
+    const t = convexTest(schema, modules);
+    const ada = await signedIn(t, "ada@example.com");
+    await ada.as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 70 });
+    await expect(ada.as.mutation(api.reminders.sendTest, { alarm: true })).rejects.toThrow(/this device/);
+    await ada.as.mutation(api.reminders.savePushSubscription, SUB);
+    await ada.as.mutation(api.reminders.sendTest, { alarm: true });
+  });
+});

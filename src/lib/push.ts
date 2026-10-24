@@ -74,9 +74,17 @@ export async function unsubscribePush(): Promise<string | null> {
 }
 
 /** Show a notification now (on-device reminders and previews). */
-export async function showNotification(title: string, body: string, url = "/home", tag?: string) {
+/** Matches ALARM_VIBRATE in public/sw.js. */
+const ALARM_VIBRATE = [800, 300, 800, 300, 800, 300, 1200];
+
+/** `alarm`: stays on screen, vibrates hard and offers Done / Snooze (snooze is handled in public/sw.js). */
+export async function showNotification(title: string, body: string, url = "/home", tag?: string, alarm = false) {
   if (!notificationsSupported() || Notification.permission !== "granted") return;
-  const options: NotificationOptions = { body, icon: "/icon.svg", badge: "/icon.svg", tag, data: { url } };
+  // `vibrate`, `renotify` and `actions` exist in browsers but not in TypeScript's NotificationOptions yet.
+  const options: NotificationOptions & Record<string, unknown> = {
+    body, icon: "/icon.svg", badge: "/icon.svg", tag, data: { url, alarm, title, body, tag },
+    ...(alarm ? { requireInteraction: true, renotify: !!tag, vibrate: ALARM_VIBRATE, actions: [{ action: "done", title: "✓ Done" }, { action: "snooze", title: "⏰ Snooze 10 min" }] } : {}),
+  };
   try {
     const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : undefined;
     if (reg) return await reg.showNotification(title, options);

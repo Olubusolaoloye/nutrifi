@@ -2,7 +2,7 @@
 // Cloud versions talk to Convex; on-device versions work without an account.
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
-import { BellRing, Check, MessageCircle, Send, Smartphone, X } from "lucide-react";
+import { AlarmClock, BellRing, Check, MessageCircle, Send, Smartphone, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../../convex/_generated/api";
 import { currentPushEndpoint, isInstalled, isIos, notificationsSupported, pushSupported, requestPermission, showNotification, subscribePush, unsubscribePush } from "../lib/push";
@@ -268,7 +268,7 @@ export function CloudWhatsAppCard({ save }: { save: Save }) {
   );
 }
 
-export function CloudTestButton() {
+export function CloudTestButton({ alarm = false }: { alarm?: boolean }) {
   const sendTest = useMutation(api.reminders.sendTest);
   const [state, setState] = useState<{ ok?: boolean; text: string } | null>(null);
   return (
@@ -276,15 +276,24 @@ export function CloudTestButton() {
       <button
         className="btn btn-secondary btn-small"
         onClick={() =>
-          sendTest()
-            .then(() => setState({ ok: true, text: "Test sent. It should arrive in a few seconds." }))
+          sendTest({ alarm })
+            .then(() => setState({ ok: true, text: alarm ? "Test alarm sent. Lock your phone to see it arrive." : "Test sent. It should arrive in a few seconds." }))
             .catch((e) => setState({ text: message(e) }))
         }
       >
-        <Send size={15} /> Send a test reminder
+        {alarm ? <AlarmClock size={15} /> : <Send size={15} />} {alarm ? "Test an alarm" : "Send a test reminder"}
       </button>
       {state && <span className={`small ${state.ok ? "ok" : "error"}`}>{state.text}</span>}
     </div>
+  );
+}
+
+/** On-device: show a test alarm on this device straight away. */
+export function LocalAlarmTestButton() {
+  return (
+    <button className="btn btn-secondary btn-small" onClick={() => void showNotification("⏰ Test alarm", "Alarms stay on screen until you tap Done or Snooze.", "/reminders", "test-alarm", true)}>
+      <AlarmClock size={15} /> Test an alarm
+    </button>
   );
 }
 

@@ -1,9 +1,10 @@
-import { CalendarClock, Droplets, MessageCircle, Scale, UtensilsCrossed } from "lucide-react";
+import { AlarmClock, CalendarClock, Droplets, MessageCircle, Scale, UtensilsCrossed } from "lucide-react";
 import { useState } from "react";
-import { CloudPushCard, CloudTestButton, CloudWhatsAppCard, LocalPushCard, LocalWhatsAppCard } from "../components/ReminderChannels";
+import { CloudPushCard, CloudTestButton, CloudWhatsAppCard, LocalAlarmTestButton, LocalPushCard, LocalWhatsAppCard } from "../components/ReminderChannels";
 import { Card, PageHeader, Switch } from "../components/ui";
 import { dishLabel } from "../lib/planner";
-import { REMINDER_MEALS, WEEKDAYS, validateReminders, waterTimes, type ReminderSettings, type WeeklyReminder } from "../lib/reminders";
+import { REMINDER_MEALS, SNOOZE_MINUTES, WEEKDAYS, validateReminders, waterTimes, type AlarmKind, type ReminderSettings, type WeeklyReminder } from "../lib/reminders";
+import { isIos } from "../lib/push";
 import { portionOf, todayIso, useStore } from "../state/store";
 
 const BEFORE_OPTIONS = [
@@ -29,6 +30,41 @@ function WeeklyRow({ title, hint, value, onChange }: { title: string; hint: stri
       </div>
       <Switch label={title} checked={value.on} onChange={(on) => onChange({ ...value, on })} />
     </div>
+  );
+}
+
+const ALARM_ROWS: Array<{ kind: AlarmKind; label: string; hint: string }> = [
+  { kind: "meals", label: "Meals", hint: "Breakfast, lunch, snack and dinner" },
+  { kind: "appointments", label: "Calendar", hint: "Appointments and activities" },
+  { kind: "weighIn", label: "Weigh-in", hint: "Your weekly weigh-in" },
+  { kind: "planning", label: "Plan next week", hint: "Meal plan and groceries" },
+  { kind: "water", label: "Water", hint: "Every glass (can be a lot of alarms)" },
+];
+
+/** Which reminder types arrive as alarms. */
+function AlarmsCard({ reminders, save, cloud }: { reminders: ReminderSettings; save: (patch: Partial<ReminderSettings>) => void; cloud: boolean }) {
+  const alarms = reminders.alarms ?? {};
+  return (
+    <Card title={<span className="row"><AlarmClock size={18} /> Alarms</span>} className="card-accent">
+      <p className="small" style={{ marginTop: 0 }}>
+        Alarm reminders arrive straight away, stay on your screen until you tap <strong>Done</strong> or <strong>Snooze {SNOOZE_MINUTES} min</strong>,
+        and vibrate hard. Turn your phone's sound on to hear them.
+      </p>
+      {ALARM_ROWS.map((r) => (
+        <div key={r.kind} className={`rem-row${alarms[r.kind] ? "" : " is-off"}`}>
+          <div className="grow">
+            <strong className="small">{r.label}</strong>
+            <div className="small muted">{r.hint}</div>
+          </div>
+          <Switch label={`${r.label} as alarm`} checked={!!alarms[r.kind]} onChange={(on) => save({ alarms: { ...alarms, [r.kind]: on } })} />
+        </div>
+      ))}
+      {(reminders.push && (cloud ? <CloudTestButton alarm /> : <LocalAlarmTestButton />)) || (
+        <p className="small muted">Turn on notifications for this device (left) to get alarms.</p>
+      )}
+      {isIos() && <p className="small muted">On iPhone, alarms show as normal notifications: iOS doesn't let web apps vibrate or keep them on screen.</p>}
+      {!cloud && <p className="small muted">In this version, reminders and snoozes only work while Nutrintel is open.</p>}
+    </Card>
   );
 }
 
@@ -85,6 +121,7 @@ export function Reminders() {
 
         <div className="stack">
           <h2 className="section-title">What to remind me about</h2>
+          <AlarmsCard reminders={reminders} save={save} cloud={cloud} />
           {cloud && (
             <Card
               title={<span className="row"><MessageCircle size={18} /> New messages</span>}

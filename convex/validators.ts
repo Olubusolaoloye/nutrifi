@@ -88,6 +88,14 @@ export const reminderSettings = v.object({
   appointments: v.object({ on: v.boolean(), minutesBefore: v.number() }),
   /** New chat messages (on unless switched off). */
   messages: v.optional(v.boolean()),
+  /** Reminder types sent as alarms. */
+  alarms: v.optional(v.object({
+    meals: v.optional(v.boolean()),
+    water: v.optional(v.boolean()),
+    weighIn: v.optional(v.boolean()),
+    planning: v.optional(v.boolean()),
+    appointments: v.optional(v.boolean()),
+  })),
   utcOffsetMinutes: v.number(),
 });
 
