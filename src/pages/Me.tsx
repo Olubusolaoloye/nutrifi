@@ -7,6 +7,7 @@ import { Card, Disclaimer, Locked } from "../components/ui";
 import { CONDITION_LABEL, PAL } from "../lib/nutrition";
 import { bodySummary, fmt } from "../state/derived";
 import { clearInterventionsPreview } from "../state/interventions";
+import { CloudProCard } from "./Pro";
 import { canUseWorkbench, useStore } from "../state/store";
 
 const ROLE_LABEL = { consumer: "Member", student: "Nutrition student", dietitian: "Dietitian" };
@@ -66,6 +67,7 @@ export function Me() {
         </Card>
       )}
 
+      {cloud && profile.role === "dietitian" && profile.verification === "verified" && <CloudProCard />}
       {canUseWorkbench(profile) ? (
         <Card title="Professional tools" className="card-accent">
           <div className="row">

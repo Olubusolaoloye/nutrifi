@@ -468,7 +468,7 @@ export function Landing() {
             { name: "Free", price: "₦0", note: "forever", items: ["BMI and daily target", "Food diary and water", "Notes and insights"], cta: "Start free" },
             { name: "Premium", price: "₦2,500", note: "per month", items: ["Everything in Free", "Meal plans and grocery lists", "Detailed nutrient reports"], cta: "Start free", featured: true },
             { name: "Student", price: "₦1,000", note: "per month", items: ["Workbench in learning mode", "Show working and practice cases", "Verified student badge"], cta: "Verify as a student" },
-            { name: "Dietitian Pro", price: "₦7,500", note: "per month", items: ["Full workbench and reports", "Client tools and chat", "Offer paid programmes"], cta: "Verify your licence" },
+            { name: "Dietitian Pro", price: "₦7,500", note: "per month", items: ["30-day free trial", "Full workbench and reports", "Client tools, chat and paid programmes"], cta: "Verify your licence" },
           ].map((p) => (
             <div key={p.name} className={`lp-plan${p.featured ? " is-featured" : ""}`} data-reveal>
               {p.featured && <span className="lp-plan-flag">Recommended</span>}

@@ -1363,3 +1363,12 @@ fieldset.field { border: 0; padding: 0; min-width: 0; }
 .grocery-group input { width: 18px; height: 18px; min-height: 0; margin: 0; flex-shrink: 0; accent-color: var(--brand-text); }
 .grocery-group label.is-done .grow { text-decoration: line-through; color: var(--muted); }
 .grocery-group .muted { flex-shrink: 0; font-size: 0.78rem; }
+
+/* Dietitian Pro */
+.pro-perks { list-style: none; padding: 0; margin: 0 0 0.9rem; display: grid; gap: 0.35rem; }
+.pro-perks li { display: flex; align-items: center; gap: 0.4rem; }
+.pro-perks svg { color: var(--brand-text); flex-shrink: 0; }
+.pro-pay { display: grid; gap: 0.6rem; justify-items: start; }
+.pro-pay .seg { flex-wrap: wrap; }
+.locked .pro-pay { justify-items: center; }
+.pro-history { margin: 0.4rem 0 0; padding-left: 1.1rem; }

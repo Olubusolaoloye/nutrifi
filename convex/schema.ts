@@ -135,6 +135,22 @@ export default defineSchema({
     .index("by_dietitian", ["dietitianId"])
     .index("by_active", ["active"]),
 
+  /** Dietitian Pro payments (see pro.ts). A paid row covers [start, periodEnd). */
+  proPayments: defineTable({
+    userId: v.id("users"),
+    reference: v.string(),
+    months: v.number(),
+    amountNaira: v.number(),
+    status: v.union(v.literal("pending"), v.literal("paid")),
+    createdAt: v.number(),
+    paidAt: v.optional(v.number()),
+    periodEnd: v.optional(v.number()),
+    /** Simulated (PAYMENTS_DEMO). */
+    demo: v.optional(v.boolean()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_reference", ["reference"]),
+
   /** A member's place on a programme with one dietitian. Price and fee are fixed when they enrol. */
   enrolments: defineTable({
     memberId: v.id("users"),

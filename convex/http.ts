@@ -32,7 +32,9 @@ http.route({
     if (!sameHex(await hmacSha512Hex(secret, body), signature.toLowerCase())) return new Response("Bad signature", { status: 401 });
     const event = JSON.parse(body) as { event: string; data?: { reference?: string; amount?: number; currency?: string; status?: string } };
     if (event.event === "charge.success" && event.data?.reference && event.data.currency === "NGN" && typeof event.data.amount === "number") {
-      await ctx.runMutation(internal.interventions.markPaid, { reference: event.data.reference, amountKobo: event.data.amount });
+      const paid = { reference: event.data.reference, amountKobo: event.data.amount };
+      if (paid.reference.startsWith("np_")) await ctx.runMutation(internal.pro.markPaid, paid);
+      else await ctx.runMutation(internal.interventions.markPaid, paid);
     }
     return new Response("ok", { status: 200 });
   }),

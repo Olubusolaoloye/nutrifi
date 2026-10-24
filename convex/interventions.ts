@@ -4,6 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { scheduleMessageAlert } from "./alerts";
 import { checkText, getProfile, requireUser } from "./helpers";
+import { isBookable } from "./pro";
 import { intake } from "./validators";
 import { programmeById } from "../src/data/programmes";
 import { intakeError, splitPayment, type DietitianCard, type ThreadMessage } from "../src/lib/interventions";
@@ -84,7 +85,7 @@ export const catalogue = query({
     const cards = new Map<string, DietitianCard | null>();
     const out = [];
     for (const o of offerings) {
-      if (!cards.has(o.dietitianId)) cards.set(o.dietitianId, (await isVerifiedDietitian(ctx, o.dietitianId)) ? await dietitianCard(ctx, o.dietitianId) : null);
+      if (!cards.has(o.dietitianId)) cards.set(o.dietitianId, (await isBookable(ctx, o.dietitianId)) ? await dietitianCard(ctx, o.dietitianId) : null);
       const dietitian = cards.get(o.dietitianId);
       if (dietitian && programmeById(o.programmeId)) out.push({ id: o._id as string, programmeId: o.programmeId, priceNaira: o.priceNaira, dietitian });
     }
@@ -99,7 +100,7 @@ export const enrol = mutation({
     const memberId = await requireUser(ctx);
     if (!(await getProfile(ctx, memberId))) throw new ConvexError("Please finish setting up your profile first.");
     const offering = await ctx.db.get(args.offeringId);
-    if (!offering?.active || !(await isVerifiedDietitian(ctx, offering.dietitianId))) throw new ConvexError("This programme isn't available any more.");
+    if (!offering?.active || !(await isBookable(ctx, offering.dietitianId))) throw new ConvexError("This programme isn't available any more.");
     if (offering.dietitianId === memberId) throw new ConvexError("You can't enrol on your own programme.");
     const err = intakeError(args.intake);
     if (err) throw new ConvexError(err);

@@ -1,3 +1,4 @@
+import { CloudProBanner } from "./Pro";
 import { AlertTriangle, ArrowLeft, ArrowLeftRight, Banknote, CalendarCheck, CalendarRange, MessageCircle, Pill, Send, Target, Trash2, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -64,6 +65,7 @@ export function Clients() {
     <DietitianOnly>
       <div className="page page-wide">
         <PageHeader title="Clients" subtitle="Your programme clients, offerings and earnings" />
+        {mode === "cloud" && <CloudProBanner />}
         {mode === "preview" && (
           <div className="banner banner-info">Preview with sample clients. Changes stay on this device and nothing is sent to anyone.</div>
         )}

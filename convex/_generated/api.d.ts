@@ -22,6 +22,7 @@ import type * as me from "../me.js";
 import type * as notify from "../notify.js";
 import type * as passwordReset from "../passwordReset.js";
 import type * as payments from "../payments.js";
+import type * as pro from "../pro.js";
 import type * as profile from "../profile.js";
 import type * as reminders from "../reminders.js";
 import type * as settings from "../settings.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   notify: typeof notify;
   passwordReset: typeof passwordReset;
   payments: typeof payments;
+  pro: typeof pro;
   profile: typeof profile;
   reminders: typeof reminders;
   settings: typeof settings;
