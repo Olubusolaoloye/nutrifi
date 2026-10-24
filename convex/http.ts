@@ -1,7 +1,9 @@
 import { httpRouter } from "convex/server";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { auth } from "./auth";
+import { readSnooze, SNOOZE_MS } from "./snooze";
 
 const http = httpRouter();
 auth.addHttpRoutes(http);
@@ -37,6 +39,24 @@ http.route({
       else await ctx.runMutation(internal.interventions.markPaid, paid);
     }
     return new Response("ok", { status: 200 });
+  }),
+});
+
+/** "Snooze" on an alarm notification (posted by the service worker with the signed token from the push). */
+http.route({
+  path: "/reminders/snooze",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const cors = { "Access-Control-Allow-Origin": "*" };
+    const secret = process.env.VAPID_PRIVATE_KEY;
+    if (!secret) return new Response("Push not configured", { status: 503, headers: cors });
+    const p = await readSnooze(secret, (await req.text()).trim().slice(0, 4000));
+    if (!p) return new Response("Invalid or expired", { status: 400, headers: cors });
+    const userId = p.u as Id<"users">;
+    if (!(await ctx.runMutation(internal.reminders.claimSnooze, { userId, key: p.m.key, snoozes: p.n }))) return new Response("ok", { status: 200, headers: cors });
+    const title = p.m.title.startsWith("⏰") ? p.m.title : `⏰ ${p.m.title}`;
+    await ctx.scheduler.runAfter(SNOOZE_MS, internal.notify.snoozed, { userId, message: { ...p.m, title }, snoozes: p.n + 1 });
+    return new Response("ok", { status: 200, headers: cors });
   }),
 });
 

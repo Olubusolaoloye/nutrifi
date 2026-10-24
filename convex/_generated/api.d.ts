@@ -26,6 +26,7 @@ import type * as pro from "../pro.js";
 import type * as profile from "../profile.js";
 import type * as reminders from "../reminders.js";
 import type * as settings from "../settings.js";
+import type * as snooze from "../snooze.js";
 import type * as social from "../social.js";
 import type * as usernames from "../usernames.js";
 import type * as validators from "../validators.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   profile: typeof profile;
   reminders: typeof reminders;
   settings: typeof settings;
+  snooze: typeof snooze;
   social: typeof social;
   usernames: typeof usernames;
   validators: typeof validators;

@@ -1,6 +1,6 @@
 // Minimal offline support: cache the app shell, serve it when offline.
 // Network-first so users always get the newest version when online.
-const CACHE = "nutrintel-v4";
+const CACHE = "nutrintel-v5";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -29,7 +29,26 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Reminders sent from the server (web push).
+// Shared with src/lib/push.ts (on-device reminders): alarms stay on screen, vibrate hard and offer Done / Snooze.
+const ALARM_VIBRATE = [800, 300, 800, 300, 800, 300, 1200];
+function notificationOptions(data) {
+  const alarm = !!data.priority;
+  return {
+    body: data.body || "",
+    icon: "/icon.svg",
+    badge: "/icon.svg",
+    tag: data.tag,
+    // A newer message in the same chat (or an alarm coming back from snooze) replaces the old one and still buzzes.
+    renotify: alarm || !!(data.tag && data.tag.startsWith("chat-")),
+    requireInteraction: alarm,
+    vibrate: alarm ? ALARM_VIBRATE : undefined,
+    silent: false,
+    actions: alarm ? [{ action: "done", title: "✓ Done" }, { action: "snooze", title: "⏰ Snooze 10 min" }] : [],
+    data: { url: data.url || "/home", alarm, snoozeUrl: data.snoozeUrl, snoozeToken: data.snoozeToken, title: data.title, body: data.body, tag: data.tag },
+  };
+}
+
+// Reminders and message alerts sent from the server (web push).
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -37,24 +56,35 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "Nutrintel";
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || "",
-      icon: "/icon.svg",
-      badge: "/icon.svg",
-      tag: data.tag,
-      // A newer message in the same chat replaces the old notification and still buzzes.
-      renotify: !!(data.tag && data.tag.startsWith("chat-")),
-      data: { url: data.url || "/home" },
-    }),
-  );
+  event.waitUntil(self.registration.showNotification(data.title || "Nutrintel", notificationOptions(data)));
 });
 
-// Open (or focus) the app on the reminder's page.
+// Lets the app show alarms through the service worker (on-device reminders).
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "show-alarm") {
+    event.waitUntil(self.registration.showNotification(event.data.title, notificationOptions({ ...event.data, priority: true })));
+  }
+});
+
 self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const url = new URL((event.notification.data && event.notification.data.url) || "/home", self.location.origin).href;
+  const n = event.notification;
+  const data = n.data || {};
+  n.close();
+  if (event.action === "done") return;
+  if (event.action === "snooze") {
+    event.waitUntil(
+      data.snoozeUrl
+        // Account: the server sends it again in 10 minutes, even if the phone is locked.
+        ? fetch(data.snoozeUrl, { method: "POST", body: data.snoozeToken, headers: { "Content-Type": "text/plain" } }).catch(() => {})
+        // On-device: ask an open Nutrintel window to show it again in 10 minutes.
+        : self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) =>
+            wins.forEach((w) => w.postMessage({ type: "snooze", title: data.title, body: data.body, url: data.url, tag: data.tag })),
+          ),
+    );
+    return;
+  }
+  // Open (or focus) the app on the reminder's page.
+  const url = new URL(data.url || "/home", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
       const open = wins.find((w) => new URL(w.url).origin === self.location.origin);

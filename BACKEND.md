@@ -16,6 +16,7 @@ Nutrintel runs in two modes:
 | `reminders.ts` | Push subscriptions, WhatsApp number confirmation (6-digit code), test reminders, and `claimDue`, which works out what's due and records it so nothing is sent twice |
 | `pro.ts` | Dietitian Pro: trial, paid months, who can be booked (`isBookable`); payments go through `payments.ts` (`startProPayment`, `verifyProPayment`) and the Paystack webhook |
 | `notify.ts` | Sends reminders and new-message alerts (Node runtime): web push with VAPID keys, WhatsApp Cloud API template messages |
+| `snooze.ts` | Signed "Snooze 10 min" links on alarm reminders: `POST /reminders/snooze` (in `http.ts`) re-sends the alarm 10 minutes later, at most 3 times; links are HMAC-signed with `VAPID_PRIVATE_KEY`, expire after 12 hours and work once |
 | `alerts.ts` | New-message alerts: each chat message schedules one 15 s later, sent only if it's still unread then and is the latest in the burst. Programme chats never put the message text in the notification; WhatsApp alerts say who wrote, at most once an hour per chat |
 | `crons.ts` | Checks for due reminders every 5 minutes |
 | `interventions.ts` | Paid programmes: catalogue of verified dietitians' offerings, enrolment with intake and consent, member programme view, messages, payment confirmation (`markPaid`) |

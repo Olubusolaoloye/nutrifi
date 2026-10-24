@@ -127,18 +127,22 @@ export const removeWhatsApp = mutation({
   },
 });
 
-/** Send a test reminder to all of this member's channels (at most once a minute). */
+/** Send a test reminder (or a test alarm) to all of this member's channels (at most once a minute). */
 export const sendTest = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { alarm: v.optional(v.boolean()) },
+  handler: async (ctx, { alarm }) => {
     const userId = await requireUser(ctx);
     const key = `test|${Math.floor(Date.now() / 60_000)}`;
     if (await ctx.db.query("reminderLog").withIndex("by_user_key", (q) => q.eq("userId", userId).eq("key", key)).unique()) {
       throw new ConvexError("Test sent. Please wait a minute before sending another.");
     }
     await ctx.db.insert("reminderLog", { userId, key, sentAt: Date.now() });
-    const msg: ReminderMessage = { key, title: "Nutrintel reminders are on ✅", body: "This is how your reminders will look.", url: "/reminders" };
-    const delivery = await deliveryFor(ctx, userId, [msg], { ignoreChannelSwitches: true });
+    const msg: ReminderMessage = alarm
+      ? { key, title: "⏰ Test alarm", body: "Alarms stay on screen until you tap Done or Snooze.", url: "/reminders", priority: true }
+      : { key, title: "Nutrintel reminders are on ✅", body: "This is how your reminders will look.", url: "/reminders" };
+    // An alarm test only goes to push (WhatsApp can't show alarms).
+    const delivery = await deliveryFor(ctx, userId, [msg], { ignoreChannelSwitches: true, whatsapp: !alarm });
+    if (alarm && !delivery?.push.length) throw new ConvexError("Turn on notifications on this device first.");
     if (!delivery) throw new ConvexError("Turn on notifications on this device or confirm your WhatsApp number first.");
     await ctx.scheduler.runAfter(0, internal.notify.deliver, { deliveries: [delivery] });
   },
@@ -151,6 +155,9 @@ export interface Delivery {
   /** Replaces the reminder text on WhatsApp (message alerts leave the message itself out). */
   whatsappText?: string;
   name: string;
+  userId: Id<"users">;
+  /** For a snoozed alarm: how many times it has been snoozed. */
+  snoozes?: number;
 }
 
 export async function deliveryFor(
@@ -169,7 +176,7 @@ export async function deliveryFor(
   const whatsapp = wa?.verifiedAt ? wa.phone : null;
   if (push.length === 0 && !whatsapp) return null;
   const profile = await ctx.db.query("profiles").withIndex("by_user", (q) => q.eq("userId", userId)).unique();
-  return { messages, push, whatsapp, name: profile?.name.split(" ")[0] ?? "there" };
+  return { messages, push, whatsapp, name: profile?.name.split(" ")[0] ?? "there", userId };
 }
 
 /** Everything the reminder rules need to know about one member's day. */
@@ -221,6 +228,27 @@ export const claimDue = internalMutation({
       await ctx.db.delete(old._id);
     }
     return out;
+  },
+});
+
+/** Records a snooze once, so replaying the same link can't schedule the alarm again. */
+export const claimSnooze = internalMutation({
+  args: { userId: v.id("users"), key: v.string(), snoozes: v.number() },
+  handler: async (ctx, { userId, key, snoozes }) => {
+    const logKey = `snooze|${key}|${snoozes}`;
+    if (!(await ctx.db.get(userId))) return false;
+    if (await ctx.db.query("reminderLog").withIndex("by_user_key", (q) => q.eq("userId", userId).eq("key", logKey)).unique()) return false;
+    await ctx.db.insert("reminderLog", { userId, key: logKey, sentAt: Date.now() });
+    return true;
+  },
+});
+
+/** A snoozed alarm, due again now: push only, to the member's current devices. */
+export const snoozedDelivery = internalMutation({
+  args: { userId: v.id("users"), message: v.object({ key: v.string(), title: v.string(), body: v.string(), url: v.string() }), snoozes: v.number() },
+  handler: async (ctx, { userId, message, snoozes }): Promise<Delivery | null> => {
+    const d = await deliveryFor(ctx, userId, [{ ...message, priority: true }], { whatsapp: false });
+    return d && { ...d, snoozes };
   },
 });
 
