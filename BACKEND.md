@@ -14,6 +14,7 @@ Nutrintel runs in two modes:
 | `passwordReset.ts` | "Forgot password?": emails an 8-digit reset code through Resend |
 | `settings.ts` | Saves meal-plan preferences and reminder settings |
 | `reminders.ts` | Push subscriptions, WhatsApp number confirmation (6-digit code), test reminders, and `claimDue`, which works out what's due and records it so nothing is sent twice |
+| `pro.ts` | Dietitian Pro: trial, paid months, who can be booked (`isBookable`); payments go through `payments.ts` (`startProPayment`, `verifyProPayment`) and the Paystack webhook |
 | `notify.ts` | Sends reminders and new-message alerts (Node runtime): web push with VAPID keys, WhatsApp Cloud API template messages |
 | `alerts.ts` | New-message alerts: each chat message schedules one 15 s later, sent only if it's still unread then and is the latest in the burst. Programme chats never put the message text in the notification; WhatsApp alerts say who wrote, at most once an hour per chat |
 | `crons.ts` | Checks for due reminders every 5 minutes |
@@ -123,6 +124,16 @@ How money flows: the member pays Nutrintel the dietitian's price; Nutrintel keep
 For testing without Paystack, `npx convex env set PAYMENTS_DEMO true` activates programmes without payment. Demo enrolments are marked and never count as earnings. **Never set it in production.**
 
 Privacy: a dietitian sees a member's diary, water, weight and notes only while that member's paid programme is active and only because the member ticked the consent box. When the programme ends the logs stop being shared; when a member deletes their data, their messages, check-ins and supplements are deleted and the enrolment stays only as a payment record.
+
+## Dietitian Pro: Paystack
+
+Pro uses the same Paystack key and webhook as programmes (Pro references start with `np_`, programmes with `nf_`).
+
+- **Price:** ₦7,500 a month by default; change it with `npx convex env set PRO_PRICE_NAIRA 7500`. Dietitians pay for 1, 3, 6 or 12 months up front (card, bank transfer or USSD), and nothing renews automatically. New months start when the current trial or paid period ends.
+- **Trial:** 30 days, counted from verification or from billing launch (24 Oct 2026, `PRO_BILLING_LAUNCH` in `convex/pro.ts`), whichever is later.
+- **Until Paystack is set up**, Pro is free for every verified dietitian ("early access").
+- **What lapses:** the Workbench and being listed on Programmes, so new members can't book them. Existing clients keep their chat, plans and check-ins, so members who already paid are never cut off.
+- After paying, Paystack returns the dietitian to `<SITE_URL>/pro/paid`. Students and members don't pay for anything here.
 
 ## Notes
 

@@ -20,6 +20,7 @@ import { Onboarding } from "./pages/Onboarding";
 import { Progress } from "./pages/Progress";
 import { MyProgramme, PaymentReturn, ProgrammeDetail, Programmes } from "./pages/Programmes";
 import { RecipeDetail, Recipes } from "./pages/Recipes";
+import { ProGate, ProPaymentReturn } from "./pages/Pro";
 import { Reminders } from "./pages/Reminders";
 import { Workbench } from "./pages/Workbench";
 import { useStore } from "./state/store";
@@ -38,7 +39,8 @@ function appRoutes(isAdmin: boolean) {
       <Route path="/learn" element={<Learn />} />
       <Route path="/learn/:id" element={<ArticlePage />} />
       <Route path="/me" element={<Me />} />
-      <Route path="/workbench" element={<Workbench />} />
+      <Route path="/workbench" element={<ProGate><Workbench /></ProGate>} />
+      <Route path="/pro/paid" element={<ProPaymentReturn />} />
       <Route path="/recipes" element={<Recipes />} />
       <Route path="/recipes/:id" element={<RecipeDetail />} />
       <Route path="/plan" element={<MealPlan />} />

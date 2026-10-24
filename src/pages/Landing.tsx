@@ -215,7 +215,7 @@ export function Landing() {
           </div>
           <div className="lp-float f3" aria-hidden>
             <span className="lp-float-icon lime"><BadgeCheck size={18} /></span>
-            <div><strong>Plan by a verified dietitian</strong><span>Coming soon</span></div>
+            <div><strong>Plan by a verified dietitian</strong><span>1-to-1 programmes</span></div>
           </div>
         </div>
       </section>
@@ -404,7 +404,7 @@ export function Landing() {
               <li><Check size={16} aria-hidden /> Mifflin-St Jeor, Harris-Benedict, Schofield, Katch-McArdle</li>
               <li><Check size={16} aria-hidden /> Show-working mode and practice cases for students</li>
               <li><Check size={16} aria-hidden /> Licence and student verification</li>
-              <li><Check size={16} aria-hidden /> Paid client programmes — coming soon</li>
+              <li><Check size={16} aria-hidden /> Paid client programmes, with chat, check-ins and meal plans</li>
             </ul>
             <Link to="/start" className="lp-btn lp-btn-lime">Get verified access <ArrowRight size={18} aria-hidden /></Link>
           </div>
@@ -468,7 +468,7 @@ export function Landing() {
             { name: "Free", price: "₦0", note: "forever", items: ["BMI and daily target", "Food diary and water", "Notes and insights"], cta: "Start free" },
             { name: "Premium", price: "₦2,500", note: "per month", items: ["Everything in Free", "Meal plans and grocery lists", "Detailed nutrient reports"], cta: "Start free", featured: true },
             { name: "Student", price: "₦1,000", note: "per month", items: ["Workbench in learning mode", "Show working and practice cases", "Verified student badge"], cta: "Verify as a student" },
-            { name: "Dietitian Pro", price: "₦7,500", note: "per month", items: ["Full workbench and reports", "Client tools (coming soon)", "Offer paid programmes (soon)"], cta: "Verify your licence" },
+            { name: "Dietitian Pro", price: "₦7,500", note: "per month", items: ["30-day free trial", "Full workbench and reports", "Client tools, chat and paid programmes"], cta: "Verify your licence" },
           ].map((p) => (
             <div key={p.name} className={`lp-plan${p.featured ? " is-featured" : ""}`} data-reveal>
               {p.featured && <span className="lp-plan-flag">Recommended</span>}

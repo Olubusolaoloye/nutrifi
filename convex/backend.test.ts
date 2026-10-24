@@ -817,3 +817,55 @@ describe("new message alerts", () => {
     expect(JSON.stringify(alert)).not.toContain("HbA1c");
   });
 });
+
+describe("dietitian pro", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("is free until payments are switched on", async () => {
+    const t = convexTest(schema, modules);
+    const d = await dietitian(t, "funke@clinic.ng");
+    expect(await d.as.query(api.pro.status, {})).toMatchObject({ live: false, active: true });
+    await expect(d.as.action(api.payments.startProPayment, { months: 1 })).rejects.toThrow(/free until/);
+    const m = await signedIn(t, "ada@example.com");
+    await m.as.mutation(api.profile.create, { ...PROFILE, role: "consumer", weightKg: 70 });
+    expect(await m.as.query(api.pro.status, {})).toBeNull();
+  });
+
+  it("gives a 30-day trial, then hides lapsed dietitians from new members but keeps their clients", async () => {
+    const { t, d, m, enrolmentId } = await paidSetup();
+    let s = (await d.as.query(api.pro.status, {}))!;
+    expect(s).toMatchObject({ live: true, active: true, onTrial: true, priceNaira: 7500, paidUntil: null });
+    expect(s.trialEndsAt).toBeGreaterThanOrEqual(Date.now() + 29 * 86_400_000);
+
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(s.trialEndsAt + 1000);
+    s = (await d.as.query(api.pro.status, {}))!;
+    expect(s).toMatchObject({ active: false, onTrial: false });
+    expect(await t.query(api.interventions.catalogue, {})).toEqual([]);
+    // Existing clients are still looked after.
+    await d.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Still here for you." });
+    expect((await d.as.query(api.clients.myClients, {})).length).toBe(1);
+    await m.as.mutation(api.interventions.sendMessage, { enrolmentId, text: "Thanks!" });
+
+    // Paying 3 months (demo) brings them back for 90 days from today.
+    await expect(d.as.action(api.payments.startProPayment, { months: 2 })).rejects.toThrow(/1, 3, 6 or 12/);
+    expect(await d.as.action(api.payments.startProPayment, { months: 3 })).toEqual({ demo: true });
+    s = (await d.as.query(api.pro.status, {}))!;
+    expect(s.active).toBe(true);
+    expect(s.paidUntil! - Date.now()).toBeGreaterThan(89 * 86_400_000);
+    expect(s.history).toEqual([expect.objectContaining({ months: 3, amountNaira: 22500, demo: true })]);
+    expect(await t.query(api.interventions.catalogue, {})).toHaveLength(1);
+  });
+
+  it("adds paid months after the trial, and checks the amount Paystack reports", async () => {
+    const { t, d } = await paidSetup();
+    const trialEndsAt = (await d.as.query(api.pro.status, {}))!.trialEndsAt;
+    await d.as.action(api.payments.startProPayment, { months: 1 });
+    expect((await d.as.query(api.pro.status, {}))!.paidUntil).toBeGreaterThanOrEqual(trialEndsAt + 30 * 86_400_000);
+    await t.mutation(internal.pro.createPending, { userId: d.userId, reference: "np_x", months: 1, amountNaira: 7500 });
+    expect(await t.mutation(internal.pro.markPaid, { reference: "np_x", amountKobo: 100 })).toBe("amount_mismatch");
+    expect(await t.mutation(internal.pro.markPaid, { reference: "np_x", amountKobo: 750000 })).toBe("activated");
+    expect(await t.mutation(internal.pro.markPaid, { reference: "np_x", amountKobo: 750000 })).toBe("already_active");
+    expect(await t.mutation(internal.pro.markPaid, { reference: "np_unknown", amountKobo: 750000 })).toBe("unknown");
+  });
+});

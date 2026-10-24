@@ -154,7 +154,7 @@ export function AddFood() {
                   </ul>
                 </section>
               ))}
-              {sections.length === 0 && <div className="empty-meal muted">No match for “{query}”. Food requests are coming soon.</div>}
+              {sections.length === 0 && <div className="empty-meal muted">No match for “{query}”. Try a shorter word or another spelling (e.g. “ewedu” or “jute”).</div>}
             </>
           )}
         </div>
