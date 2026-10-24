@@ -154,7 +154,7 @@ export function Home() {
               <Avatar name={profile.name} />
               <span><strong>{profile.name}</strong><span className="muted small">{ROLE_LABEL[profile.role]}</span></span>
             </Link>
-            <button className="icon-btn" aria-label="Reminders (coming soon)" disabled><Bell size={18} /></button>
+            <Link to="/reminders" className="icon-btn" aria-label="Reminders"><Bell size={18} /></Link>
           </div>
 
           <Card title="Water" action={<span className="muted small">{fmt(waterMl / 1000, 1)} / {fmt(s.waterTargetMl / 1000, 1)} L</span>}>

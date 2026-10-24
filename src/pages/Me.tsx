@@ -90,7 +90,7 @@ export function Me() {
       {cloud && <AccountCard />}
       {cloud ? <CloudDeleteCard /> : (
       <Card title="Privacy & data">
-        <p className="small">Your data is stored on this device for now. Account sync is coming soon.</p>
+        <p className="small">This version keeps your data on this device only. Nothing is sent to a server.</p>
         <button
           className="btn btn-danger"
           onClick={() => {
